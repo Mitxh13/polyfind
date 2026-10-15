@@ -44,3 +44,12 @@ Do not add CI, Docker, deployment pipelines, cloud services, or paid services un
 
 ## Decisions log
 Record non-obvious architectural choices in `docs/decisions/`. Do not create an ADR for every routine implementation detail.
+
+## Parallel execution and ownership
+
+- Check `docs/PARALLEL_WORK_PLAN.md` and the assigned slice before starting.
+- Every slice has one owner. Do not create "Shared", "Both", or joint-owner assignments.
+- The non-owner may review but the slice owner remains accountable for implementation, tests, and evidence.
+- Do not wait for an upstream implementation when an agreed contract, mock, fixture, or stub adapter is sufficient to proceed.
+- Keep contracts stable for product IDs, versions, API payloads, candidate records, freshness behavior, and benchmark outputs.
+- Integrate incrementally through reviewed, slice-labelled PRs. Preserve all existing slice IDs.

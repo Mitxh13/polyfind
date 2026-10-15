@@ -1,23 +1,37 @@
-# Sprint 3 — Retrieval paths
+# Sprint 3 — Heterogeneous retrieval paths
 
 ## Goal
-Add semantic and graph retrieval behind explicit adapters and stable IDs.
+Implement retrieval interfaces, vector search, graph search, and fusion as independent adapters.
 
-## Slices in this sprint
-- [ ] `S3-01` — Retrieval interfaces and candidate schema
-- [ ] `S3-02` — Embedding generation and vector ingestion
-- [ ] `S3-03` — Vector semantic search adapter
-- [ ] `S3-04` — Neo4j graph schema and synchronization
-- [ ] `S3-05` — Graph candidate retrieval and baseline fusion
+## Slices and single owners
 
-## Depends on
-Completion of Sprint 2 contracts and acceptance checks.
+| Status | Slice | Title | Owner |
+|---|---|---|---|
+| [ ] | `S3-01` | Retrieval interfaces and candidate schema | Member A |
+| [ ] | `S3-02` | Embedding generation and vector ingestion | Member B |
+| [ ] | `S3-03` | Vector semantic search adapter | Member B |
+| [ ] | `S3-04` | Neo4j graph schema and synchronization | Member B |
+| [ ] | `S3-05` | Graph candidate retrieval and baseline fusion | Member A |
+
+## Parallel execution
+
+- Start assigned slices as soon as their interface contract is documented.
+- Use mocks, fixtures, and stub adapters instead of waiting for another slice's implementation.
+- Every slice has one owner; the other member may review but is not a co-owner.
+- Integrate incrementally through PRs and preserve slice IDs.
+
+## Dependencies
+
+The previous sprint provides context, but completing every previous slice is not a blanket start condition. Follow the prerequisite/interface contract in each slice file. If a contract is available, proceed against mocks while upstream implementation continues.
 
 ## Exit criteria
-- All slices have their acceptance criteria checked with evidence.
-- Tests and relevant documentation are updated.
-- The team records unresolved blockers instead of silently changing scope.
-- No research result is reported without reproducible configuration and baseline context.
+
+- Completed slice acceptance criteria have evidence.
+- Tests and relevant docs are updated.
+- PRs identify slice ID, tests, evidence, and limitations.
+- Blockers are explicit; scope is not silently changed.
+- Research results include reproducible configuration and baseline context.
 
 ## Notes for next time
-Leave blank unless something material broke, a slice was mis-sized, or an assumption changed.
+
+Record material failures, sizing issues, or changed assumptions.

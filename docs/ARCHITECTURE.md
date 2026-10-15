@@ -85,6 +85,7 @@ API paths and shapes are proposed contracts; align implementation and tests befo
 - Scope: one vector store, local-first, no payment features or production integrations.
 
 ## Module ownership
-- Member A primary: `catalog`, MySQL schema/transactions, data authority, benchmark harness and SQL analysis.
-- Member B primary: `cache`, `graph-retrieval`, `semantic-retrieval`, candidate fusion.
-- Shared: `search-api`, `retrieval-planner`, `sync`, `web-ui`, integration tests, research report.
+
+- **Member A:** MySQL catalog/schema/transactions; relational correctness; retrieval contracts and baseline fusion; version metadata; freshness validation; planner baselines; deterministic workload/relevance metrics; failure/regression/security checks; statistical summaries; research claims; final acceptance.
+- **Member B:** Local development configuration; vector-store/embedding evaluation; seed fixture/validation; catalog UI; embedding ingestion; vector adapter; Neo4j graph/synchronization; Redis cache/invalidation; search API/UI integration; benchmark harness/ablation experiments; result visualization; report/demo.
+- **No module or slice is jointly owned.** Cross-module interfaces are agreed early; each owner develops against fixtures or mocks while other components are in progress. See `docs/PARALLEL_WORK_PLAN.md`.
