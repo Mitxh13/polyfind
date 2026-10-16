@@ -63,3 +63,12 @@ Compare MySQL-only structured retrieval, fixed multi-store retrieval, fixed hybr
 3. Read the assigned slice and its sprint plan.
 4. Agree on interface contracts and start with fixtures/mocks if a provider is not ready.
 5. Implement only the assigned slice; add tests/evidence and open a slice-labelled PR.
+
+## S1-04 contract baseline
+
+The initial typed contract layer is in `src/contracts/` and is intentionally
+backend-independent. Run `npm test` for runtime validation tests and
+`npm run typecheck` for TypeScript checks. See `docs/contracts.md` for the
+request/response examples, defaults, validation errors, and interface
+boundaries. S1-04 does not implement catalog persistence, retrieval, freshness
+verification, or orchestration.

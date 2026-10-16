@@ -11,12 +11,12 @@ PolyFind is a research-oriented multi-database search application exploring fres
 
 ## Current repository status
 
-This repository is the planning and contract baseline. It does not yet contain an
-executable Next.js application, package manifest, database migrations, or test
-runner, so there is no `npm install` or `npm run dev` command to run yet. Begin
-with S1-01 through S1-05, then add the application and tooling in the assigned
-slices. Do not treat the placeholder values in `.env.example` as working
-credentials.
+This repository is the planning baseline plus the S1-04 TypeScript contract
+layer. It is not yet a complete Next.js application and does not include
+database migrations or live integrations. Install the development dependencies
+and run the contract checks with `npm install`, `npm test`, and
+`npm run typecheck`. Begin with the assigned Sprint 1 slices; do not treat the
+placeholder values in `.env.example` as working credentials.
 
 ## Current Project direction
 **PolyFind: Freshness-Constrained Adaptive Retrieval Across Heterogeneous Databases**
@@ -47,4 +47,5 @@ Every slice has one directly responsible owner; there are no shared/co-owned sli
 - `docs/decisions/` — decisions worth recording
 - `docs/sprints/` — feature-level implementation chunks
 - `docs/slices/` — individually executable, testable tasks
+- `docs/contracts.md` — S1-04 typed boundaries, validation, interfaces, and examples
 - `AGENTS.md` — coding-agent operating rules
