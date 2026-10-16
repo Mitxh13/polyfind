@@ -42,10 +42,14 @@ Build a working search application and research prototype that coordinates relat
 - Report includes search-quality metrics, freshness violations, latency percentiles, resource/work counts, ablations, limitations, and repeatability details.
 - No novelty or performance claim is made without direct evidence.
 
-## Open questions
-- Which vector database and embedding model/provider will be selected?
-- Will authentication be required for the demo, or will it remain a single-user local prototype?
-- What is the final dataset and source/license?
-- What is the project deadline and expected sprint duration?
-- What freshness SLA applies to each field class?
-- Which baselines are feasible after the literature audit?
+## Open questions and decision tracking
+
+| # | Question | Owner | Decision Target / Date | Current Working Status |
+|---|---|---|---|---|
+| 1 | Which vector database and embedding model/provider will be selected? | Member B | Sprint 1 (`S1-05`) | Candidate spike evaluating local options; documented in ADR-003. |
+| 2 | Will authentication be required for the demo, or will it remain a single-user local prototype? | Member A | Sprint 1 (`S1-02`) | Confirmed: Single-user local prototype. Authentication is explicitly out of scope for v1. |
+| 3 | What is the final dataset and source/license? | Member B | Sprint 2 (`S2-02`) | Deterministic seed dataset and validation report with explicit provenance. |
+| 4 | What is the project deadline and expected sprint duration? | Member A | Sprint 1 milestone review | 6 sprints following the parallel plan in `docs/PARALLEL_WORK_PLAN.md`. |
+| 5 | What freshness SLA applies to each field class? | Member A | Sprint 1 (`S1-04` / ADR-002) | Zero staleness for transactional facts (price/stock); bounded eventual consistency for descriptive metadata. |
+| 6 | Which baselines are feasible after the literature audit? | Member A | Sprint 1 (`S1-02` / `docs/research.md`) | Feasible baselines identified: MySQL-only, Fixed multi-store, Fixed hybrid, and TTL-only cache. |
+

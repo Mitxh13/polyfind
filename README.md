@@ -44,8 +44,8 @@ Every slice has one directly responsible owner; there are no shared/co-owned sli
 
 - **Active Sprint:** [Sprint 1 — Research and foundation](docs/sprints/sprint-01.md)
 - **Active Slices:**
-  - `S1-01` — [Repository and contributor workflow](docs/slices/s1-01-repository-and-contributor-workflow.md) (Owner: Member A)
-  - `S1-02` — [Requirements and research-gap review](docs/slices/s1-02-requirements-and-research-gap-review.md) (Owner: Member A)
+  - `S1-01` — [Repository and contributor workflow](docs/slices/s1-01-repository-and-contributor-workflow.md) (Owner: Member A) — Completed
+  - `S1-02` — [Requirements and research-gap review](docs/slices/s1-02-requirements-and-research-gap-review.md) (Owner: Member A) — Completed
   - `S1-03` — [Local development configuration](docs/slices/s1-03-local-development-configuration.md) (Owner: Member B)
   - `S1-04` — [Architecture contracts and module skeleton](docs/slices/s1-04-architecture-contracts-and-module-skeleton.md) (Owner: Member A) — Completed
   - `S1-05` — [Vector-store and embedding spike](docs/slices/s1-05-vector-store-and-embedding-spike.md) (Owner: Member B)
