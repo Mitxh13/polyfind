@@ -7,7 +7,7 @@ Publish contracts and establish independent workspaces so both members can start
 
 | Status | Slice | Title | Owner |
 |---|---|---|---|
-| [ ] | `S1-01` | Repository and contributor workflow | Member A |
+| [x] | `S1-01` | Repository and contributor workflow | Member A |
 | [ ] | `S1-02` | Requirements and research-gap review | Member A |
 | [ ] | `S1-03` | Local development configuration | Member B |
 | [x] | `S1-04` | Architecture contracts and module skeleton | Member A |
