@@ -7,9 +7,9 @@
 Create module boundaries and typed interfaces for catalog, search, retrieval adapters, freshness, and benchmark configuration.
 
 ## Acceptance criteria
-- [ ] Module ownership matches `docs/ARCHITECTURE.md`.
-- [ ] Search request and response contracts have typed definitions.
-- [ ] A basic health endpoint or equivalent local smoke check is available.
+- [x] Module ownership matches `docs/ARCHITECTURE.md`.
+- [x] Search request and response contracts have typed definitions.
+- [x] A basic health endpoint or equivalent local smoke check is available.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -40,3 +40,18 @@ The directly responsible owner listed below is accountable for implementation, t
 - **Parallel-work rule:** Start with agreed contracts, fixtures, mocks, or stub adapters. Do not wait for another implementation if the interface can be agreed and tested independently.
 - **Completion evidence:** Meet the original acceptance criteria, add/update tests, record commands and results, and note limitations in the PR.
 - **Ownership rule:** This slice has one owner only. The other member may review but is not a co-owner. Preserve the existing slice ID.
+
+## Completion evidence
+
+- Added backend-independent TypeScript contracts in `src/contracts/` for
+  catalog, search, retrieval providers, freshness checks, and benchmark
+  configuration.
+- Added strict runtime validation, structured validation errors, JSON
+  round-trip coverage, and the `healthCheck()` smoke check.
+- `npm test` passes 8 tests; `npm run typecheck` passes.
+- Details and representative payloads are documented in `docs/contracts.md`.
+
+## Limitations
+
+This slice does not connect to a database, implement retrieval/fusion, or
+select a vector store. Those remain later-slice responsibilities.

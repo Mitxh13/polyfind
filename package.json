@@ -1,0 +1,16 @@
+{
+  "name": "polyfind",
+  "private": true,
+  "version": "0.1.0",
+  "description": "PolyFind contract and architecture baseline",
+  "type": "module",
+  "scripts": {
+    "test": "tsx --test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

@@ -7,6 +7,7 @@
 | Research | `docs/research.md` | Problem, candidate gap, research questions, evaluation |
 | Product | `docs/PRD.md` | Scope, features, exclusions, success criteria |
 | Architecture | `docs/ARCHITECTURE.md` | Stack, flow, modules, API, data authority |
+| Contracts | `docs/contracts.md` | S1-04 typed boundaries, validation, interfaces, and examples |
 | Decisions | `docs/decisions/` | Important architectural choices |
 | Sprints | `docs/sprints/` | Six feature-level chunks |
 | Slices | `docs/slices/` | Thirty testable implementation units |
