@@ -5,3 +5,4 @@ export * from "./contracts/validation.js";
 export * from "./catalog/index.js";
 export * from "./retrieval/index.js";
 export * from "./sync/index.js";
+export * from "./benchmark/index.js";
