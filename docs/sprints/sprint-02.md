@@ -9,7 +9,7 @@ Build MySQL catalog functionality and the catalog UI in parallel using contracts
 |---|---|---|---|
 | [x] | `S2-01` | Relational schema and migrations | Member A |
 | [ ] | `S2-02` | Seed dataset and data validation | Member B |
-| [ ] | `S2-03` | Catalog CRUD API | Member A |
+| [x] | `S2-03` | Catalog CRUD API | Member A |
 | [ ] | `S2-04` | Constraints, indexes, and transaction tests | Member A |
 | [ ] | `S2-05` | Minimal catalog UI and structured filters | Member B |
 
