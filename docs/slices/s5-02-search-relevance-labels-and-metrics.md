@@ -7,10 +7,10 @@
 Create relevance judgments for a manageable query set and implement search-quality metrics.
 
 ## Acceptance criteria
-- [ ] Judgment method and limitations are documented.
-- [ ] Precision@K, Recall@K, and NDCG@K are unit-tested against hand-calculated fixtures.
-- [ ] Missing judgments are handled consistently.
-- [ ] All methods are evaluated on the same query set.
+- [x] Judgment method and limitations are documented.
+- [x] Precision@K, Recall@K, and NDCG@K are unit-tested against hand-calculated fixtures.
+- [x] Missing judgments are handled consistently.
+- [x] All methods are evaluated on the same query set.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -32,6 +32,17 @@ The directly responsible owner listed below is accountable for implementation, t
 - Tests and commands run
 - Screenshots or raw benchmark artifacts when applicable
 - Any changed assumptions, limitations, or follow-up issues
+
+## Completion evidence
+
+- `npm test`
+- `npm run typecheck`
+- Relevance labels are explicitly marked as provisional, hand-authored
+  fixtures and are not presented as research evidence without independent
+  review against the final seeded dataset.
+- Metric inputs require finite positive integer `k` values.
+- Duplicate retrieved IDs are de-duplicated by first-ranked occurrence.
+- Unknown evaluation query IDs fail explicitly.
 
 ## Single-owner assignment and parallel execution
 
