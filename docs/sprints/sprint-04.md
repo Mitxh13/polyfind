@@ -7,7 +7,7 @@ Implement version/freshness logic, cache, planner baselines, and UI/API connecti
 
 | Status | Slice | Title | Owner |
 |---|---|---|---|
-| [ ] | `S4-01` | Version metadata and update events | Member A |
+| [x] | `S4-01` | Version metadata and update events | Member A |
 | [ ] | `S4-02` | Redis cache with version-aware invalidation | Member B |
 | [ ] | `S4-03` | Freshness validation and safe fallback | Member A |
 | [ ] | `S4-04` | Fixed-routing and adaptive planner baselines | Member A |
