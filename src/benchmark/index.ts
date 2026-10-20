@@ -32,3 +32,14 @@ export {
   type QueryEvaluationResult,
   type BenchmarkEvaluationReport,
 } from "./judgments.js";
+
+export {
+  BenchmarkHarness,
+  calculateLatencyQuantiles,
+  captureEnvironmentSnapshot,
+  type LatencyQuantiles,
+  type EnvironmentSnapshot,
+  type BenchmarkStrategyMetrics,
+  type BenchmarkRunResult,
+  type BenchmarkExecutionTarget,
+} from "./harness.js";
