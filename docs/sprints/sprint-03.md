@@ -8,7 +8,7 @@ Implement retrieval interfaces, vector search, graph search, and fusion as indep
 | Status | Slice | Title | Owner |
 |---|---|---|---|
 | [x] | `S3-01` | Retrieval interfaces and candidate schema | Member A |
-| [ ] | `S3-02` | Embedding generation and vector ingestion | Member B |
+| [x] | `S3-02` | Embedding generation and vector ingestion | Member B |
 | [ ] | `S3-03` | Vector semantic search adapter | Member B |
 | [ ] | `S3-04` | Neo4j graph schema and synchronization | Member B |
 | [ ] | `S3-05` | Graph candidate retrieval and baseline fusion | Member A |
