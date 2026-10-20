@@ -37,3 +37,8 @@ export {
   VectorIngestionService,
   type IngestionBatchResult,
 } from "./vector-ingestion.js";
+
+export {
+  VectorSemanticRetrievalAdapter,
+  type VectorAdapterDiagnostics,
+} from "./vector-adapter.js";
