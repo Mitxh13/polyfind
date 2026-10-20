@@ -7,9 +7,9 @@
 Define graph nodes/relationships and propagate catalogue changes using stable IDs and version-aware update logic.
 
 ## Acceptance criteria
-- [ ] Graph constraints/indexes are documented where applicable.
-- [ ] Repeated sync is idempotent for the same source version.
-- [ ] Sync lag and failures can be observed in logs/metrics without secrets.
+- [x] Graph constraints/indexes are documented where applicable.
+- [x] Repeated sync is idempotent for the same source version.
+- [x] Sync lag and failures can be observed in logs/metrics without secrets.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -26,11 +26,11 @@ Yes if the implementation touches secrets, infrastructure, authentication, destr
 ## Ownership
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
-## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+## Evidence attached
+- Implemented `Neo4jGraphSyncAdapter` in `src/sync/neo4j-sync.ts` conforming to `DerivedStoreSyncTarget`.
+- Enforced idempotent Cypher MERGE semantics, unique constraint definitions, and out-of-order stale version protection.
+- Documented node labels (`:Product`, `:Category`), relationships (`:IN_CATEGORY`, `:RELATED_TO`), and indexes in `docs/GRAPH_SCHEMA.md`.
+- Verified lag tracking, error sanitization, and metrics observability via automated unit tests in `test/neo4j-sync.test.ts`.
 
 ## Single-owner assignment and parallel execution
 
