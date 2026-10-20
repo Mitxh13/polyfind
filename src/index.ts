@@ -8,3 +8,4 @@ export * from "./sync/index.js";
 export * from "./benchmark/index.js";
 export * from "./config/index.js";
 export * from "./ui/index.js";
+export * from "./cache/index.js";
