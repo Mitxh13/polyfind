@@ -7,9 +7,9 @@
 Implement semantic candidate retrieval through the selected vector-store adapter.
 
 ## Acceptance criteria
-- [ ] A fixed query fixture returns expected candidate IDs within documented tolerances.
-- [ ] Structured metadata filters work where supported or are applied safely after retrieval.
-- [ ] Latency and result count are exposed for benchmark instrumentation.
+- [x] A fixed query fixture returns expected candidate IDs within documented tolerances.
+- [x] Structured metadata filters work where supported or are applied safely after retrieval.
+- [x] Latency and result count are exposed for benchmark instrumentation.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -26,11 +26,12 @@ Yes if the implementation touches secrets, infrastructure, authentication, destr
 ## Ownership
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
-## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+## Evidence attached
+- Implemented `VectorSemanticRetrievalAdapter` in `src/retrieval/vector-adapter.ts` implementing the `RetrievalProvider` interface.
+- Verified fixed query retrieval with normalized cosine similarity scores and preserved source versions in `test/vector-adapter.test.ts`.
+- Verified structured metadata filtering (category, max price, in-stock availability).
+- Exposed per-query and aggregate benchmark diagnostics (`lastElapsedMs`, `lastCandidateCount`, `averageLatencyMs`).
+- Verified seamless compatibility with `executeRetrievalAdapter` runner.
 
 ## Single-owner assignment and parallel execution
 
