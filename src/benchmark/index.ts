@@ -53,3 +53,18 @@ export {
   type AblationExperimentResult,
   type DelayedUpdateResult,
 } from "./ablation.js";
+
+export {
+  createDefaultBaselineArtifact,
+  renderComparisonMarkdownTable,
+  renderAsciiBarChart,
+  renderAllMetricCharts,
+  renderTradeoffsReport,
+  renderFullVisualizationReport,
+  saveBaselineArtifact,
+  loadBaselineArtifact,
+  type MethodResultPoint,
+  type TradeoffComparison,
+  type BaselineComparisonArtifact,
+  type BarChartOptions,
+} from "./visualization.js";
