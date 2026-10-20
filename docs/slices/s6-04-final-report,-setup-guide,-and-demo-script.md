@@ -7,10 +7,10 @@
 Write the final project report and a reproducible demo path.
 
 ## Acceptance criteria
-- [ ] Clean setup is documented from a fresh checkout.
-- [ ] Demo script covers structured search, semantic/graph retrieval, stale-update scenario, and benchmark output.
-- [ ] Screenshots/results correspond to the committed version.
-- [ ] Report describes failures and limitations as well as successes.
+- [x] Clean setup is documented from a fresh checkout.
+- [x] Demo script covers structured search, semantic/graph retrieval, stale-update scenario, and benchmark output.
+- [x] Screenshots/results correspond to the committed version.
+- [x] Report describes failures and limitations as well as successes.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -28,10 +28,10 @@ Yes if the implementation touches secrets, infrastructure, authentication, destr
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
 ## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+- Acceptance criteria checked: All 4 acceptance criteria verified in `test/final-delivery.test.ts`.
+- Tests and commands run: `npm test` (110 tests passing, 3 skipped), `npm run typecheck` (0 errors), `npm run seed`.
+- Screenshots or raw benchmark artifacts when applicable: `docs/FINAL_REPORT.md` and `docs/DEMO_SCRIPT.md` reference exact committed benchmark outputs from `results/baseline-comparison.json` and `results/BASELINE_COMPARISON.md`.
+- Any changed assumptions, limitations, or follow-up issues: Documented intentional latency regression (+1.10 ms p95 over unchecked cache) and negative/inconclusive ablation findings in Section 5 and 6 of `docs/FINAL_REPORT.md`.
 
 ## Single-owner assignment and parallel execution
 
