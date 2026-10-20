@@ -7,9 +7,9 @@
 Document supported runtime versions and environment variables; make missing configuration fail clearly.
 
 ## Acceptance criteria
-- [ ] `.env.example` contains names only and no usable secrets.
-- [ ] Setup instructions explain how to configure MySQL, Redis, Neo4j, and the selected vector store locally.
-- [ ] The application reports missing required configuration without exposing secret values.
+- [x] `.env.example` contains names only and no usable secrets.
+- [x] Setup instructions explain how to configure MySQL, Redis, Neo4j, and the selected vector store locally.
+- [x] The application reports missing required configuration without exposing secret values.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -26,11 +26,11 @@ Yes if the implementation touches secrets, infrastructure, authentication, destr
 ## Ownership
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
-## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+## Evidence attached
+- Acceptance criteria verified by automated unit tests in `test/environment-config.test.ts`.
+- Local configuration instructions documented in `docs/LOCAL_SETUP.md`.
+- Safe secret redaction and configuration loading implemented in `src/config/environment.ts`.
+- Commands run: `npm test` and `npm run typecheck` (all tests passing, 0 TypeScript errors).
 
 ## Single-owner assignment and parallel execution
 
