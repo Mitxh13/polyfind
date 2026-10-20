@@ -7,9 +7,9 @@
 Generate embeddings for the chosen text fields and ingest stable IDs plus source versions.
 
 ## Acceptance criteria
-- [ ] Embedding model/provider and preprocessing are documented.
-- [ ] Ingestion is repeatable and handles updates/deletes.
-- [ ] Each vector record stores a stable entity ID and source version where supported.
+- [x] Embedding model/provider and preprocessing are documented.
+- [x] Ingestion is repeatable and handles updates/deletes.
+- [x] Each vector record stores a stable entity ID and source version where supported.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -26,11 +26,11 @@ Yes if the implementation touches secrets, infrastructure, authentication, destr
 ## Ownership
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
-## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+## Evidence attached
+- Implemented text preprocessing and structured field weighting in `src/retrieval/embeddings.ts`.
+- Implemented 384-dimensional `DeterministicEmbeddingProvider` and `VectorIngestionService` in `src/retrieval/vector-ingestion.ts`.
+- Verified repeatable batch ingestion, idempotent overwrite, version advancement on update, and deletion in `test/vector-ingestion.test.ts`.
+- Documented model selection, preprocessing rules, and vector schemas in `docs/EMBEDDINGS.md`.
 
 ## Single-owner assignment and parallel execution
 
