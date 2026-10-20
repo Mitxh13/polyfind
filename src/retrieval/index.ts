@@ -25,3 +25,15 @@ export {
   type VectorStoreCandidate,
   type SpikeComparisonResult,
 } from "./vector-spike.js";
+
+export {
+  type TextEmbeddingProvider,
+  preprocessProductText,
+  buildProductEmbeddingText,
+  DeterministicEmbeddingProvider,
+} from "./embeddings.js";
+
+export {
+  VectorIngestionService,
+  type IngestionBatchResult,
+} from "./vector-ingestion.js";
