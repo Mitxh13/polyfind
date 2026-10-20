@@ -43,3 +43,13 @@ export {
   type ApiResponse,
   type ApiErrorBody,
 } from "./api.js";
+
+export {
+  generateSeedDataset,
+  validateSeedDataset,
+  DeterministicRNG,
+  CANONICAL_CATEGORIES,
+  type SeedDataset,
+  type SeedValidationReport,
+  type SeedValidationIssue,
+} from "./seed.js";
