@@ -7,10 +7,10 @@
 Connect search UI to the orchestrator and show results plus development diagnostics.
 
 ## Acceptance criteria
-- [ ] Search supports text query and structured filters.
-- [ ] Response includes result IDs/ranks and freshness/strategy metadata suitable for testing.
-- [ ] UI has loading, empty, and error states.
-- [ ] Internal diagnostics are disabled or protected outside local development.
+- [x] Search supports text query and structured filters.
+- [x] Response includes result IDs/ranks and freshness/strategy metadata suitable for testing.
+- [x] UI has loading, empty, and error states.
+- [x] Internal diagnostics are disabled or protected outside local development.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -27,11 +27,11 @@ Yes if the implementation touches secrets, infrastructure, authentication, destr
 ## Ownership
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
-## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+## Evidence attached
+- Implemented `SearchApiClient` in `src/ui/search-client.ts` supporting both live POST `/api/search` and mock search orchestrator mode with full `SearchResponse` contract compliance.
+- Implemented `SearchController` in `src/ui/search-component.ts` managing search input, structured filters, freshness mode selection, loading/empty/error states, and rendered result cards with rank and badges.
+- Implemented environment-aware diagnostics protection: development diagnostics panel is displayed in local development (`development`) and strictly suppressed in production (`production`).
+- Automated unit and component tests passing in `test/search-ui.test.ts`.
 
 ## Single-owner assignment and parallel execution
 
