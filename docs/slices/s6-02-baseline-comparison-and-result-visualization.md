@@ -7,10 +7,10 @@
 Create tables/plots comparing relevance, freshness, latency, and resource cost.
 
 ## Acceptance criteria
-- [ ] Each plotted point maps to a stored result artifact.
-- [ ] Axes, units, workload, and method names are labeled.
-- [ ] Trade-offs and regressions are visible, not hidden.
-- [ ] No performance claim lacks a baseline.
+- [x] Each plotted point maps to a stored result artifact.
+- [x] Axes, units, workload, and method names are labeled.
+- [x] Trade-offs and regressions are visible, not hidden.
+- [x] No performance claim lacks a baseline.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -28,10 +28,10 @@ Yes if the implementation touches secrets, infrastructure, authentication, destr
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
 ## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+- Acceptance criteria checked: All 4 acceptance criteria verified via automated unit and integration tests in `test/visualization.test.ts`.
+- Tests and commands run: `npm test` (105 tests passing, 3 skipped), `npm run typecheck` (0 errors), `npx tsx scripts/export-baseline-visualization.ts`.
+- Screenshots or raw benchmark artifacts when applicable: Saved raw JSON benchmark artifact to `results/baseline-comparison.json` and generated markdown report to `results/BASELINE_COMPARISON.md`.
+- Any changed assumptions, limitations, or follow-up issues: Preserved explicit performance regressions (e.g., +1.10 ms p95 latency penalty over unchecked TTL cache due to version snapshot validation) alongside freshness and resource gains.
 
 ## Single-owner assignment and parallel execution
 
