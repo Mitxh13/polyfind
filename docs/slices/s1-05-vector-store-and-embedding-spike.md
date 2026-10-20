@@ -7,9 +7,9 @@
 Compare a small set of candidate vector stores and embedding options, then update ADR-003 with evidence.
 
 ## Acceptance criteria
-- [ ] Candidates are tested against the same small fixture.
-- [ ] Filtering, update/delete, local setup, and reproducibility are recorded.
-- [ ] One backend and embedding approach are selected or a concrete blocker is documented.
+- [x] Candidates are tested against the same small fixture.
+- [x] Filtering, update/delete, local setup, and reproducibility are recorded.
+- [x] One backend and embedding approach are selected or a concrete blocker is documented.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -26,11 +26,11 @@ Yes if the implementation touches secrets, infrastructure, authentication, destr
 ## Ownership
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
-## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+## Evidence attached
+- Comparative evaluation spike implemented in `src/retrieval/vector-spike.ts` testing candidates against identical fixture `SPIKE_FIXTURE_PRODUCTS`.
+- Evaluated and documented dimensions: batch ingestion throughput, query latency, metadata filtering, in-place version updates, deletion, and reproducibility.
+- Updated `docs/decisions/ADR-003-vector-store-selection.md` to Accepted, selecting LanceDB with an InMemory fallback adapter and `all-MiniLM-L6-v2` / deterministic embeddings.
+- Verified by automated unit tests in `test/vector-spike.test.ts`. All tests passing.
 
 ## Single-owner assignment and parallel execution
 

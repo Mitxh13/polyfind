@@ -11,7 +11,7 @@ Publish contracts and establish independent workspaces so both members can start
 | [x] | `S1-02` | Requirements and research-gap review | Member A |
 | [x] | `S1-03` | Local development configuration | Member B |
 | [x] | `S1-04` | Architecture contracts and module skeleton | Member A |
-| [ ] | `S1-05` | Vector-store and embedding spike | Member B |
+| [x] | `S1-05` | Vector-store and embedding spike | Member B |
 
 ## Parallel execution
 
