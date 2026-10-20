@@ -11,7 +11,7 @@ Implement version/freshness logic, cache, planner baselines, and UI/API connecti
 | [x] | `S4-02` | Redis cache with version-aware invalidation | Member B |
 | [ ] | `S4-03` | Freshness validation and safe fallback | Member A |
 | [ ] | `S4-04` | Fixed-routing and adaptive planner baselines | Member A |
-| [ ] | `S4-05` | Search API and UI integration | Member B |
+| [x] | `S4-05` | Search API and UI integration | Member B |
 
 ## Parallel execution
 
