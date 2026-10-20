@@ -43,3 +43,13 @@ export {
   type BenchmarkRunResult,
   type BenchmarkExecutionTarget,
 } from "./harness.js";
+
+export {
+  runAblationSuite,
+  runDelayedUpdateSensitivity,
+  computeStatisticalMetric,
+  type AblationComponent,
+  type StatisticalMetric,
+  type AblationExperimentResult,
+  type DelayedUpdateResult,
+} from "./ablation.js";
