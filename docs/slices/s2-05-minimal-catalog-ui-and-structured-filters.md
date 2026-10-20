@@ -7,9 +7,9 @@
 Build a simple Next.js page that lists catalogue items and supports structured filters.
 
 ## Acceptance criteria
-- [ ] User can browse and filter products by agreed fields.
-- [ ] Loading, empty, and error states are visible.
-- [ ] UI calls the documented API contract rather than connecting directly to databases.
+- [x] User can browse and filter products by agreed fields.
+- [x] Loading, empty, and error states are visible.
+- [x] UI calls the documented API contract rather than connecting directly to databases.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -26,11 +26,10 @@ Yes if the implementation touches secrets, infrastructure, authentication, destr
 ## Ownership
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
-## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+## Evidence attached
+- Implemented `CatalogApiClient` in `src/ui/catalog-client.ts` with support for both live REST API fetching (`/api/products`) and standalone mock-data mode.
+- Implemented `CatalogController` and view component in `src/ui/catalog-component.ts` managing and rendering loading, empty, error, and product grid states with structured filters (category, price range, inStock, query).
+- Automated tests in `test/catalog-ui.test.ts` verifying all state transitions, mock mode, and REST API contract compatibility without direct DB connections.
 
 ## Single-owner assignment and parallel execution
 
