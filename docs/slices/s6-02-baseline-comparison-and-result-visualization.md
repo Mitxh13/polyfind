@@ -30,7 +30,7 @@ The directly responsible owner listed below is accountable for implementation, t
 ## Evidence to attach to PR
 - Acceptance criteria checked: All 4 acceptance criteria verified via automated unit and integration tests in `test/visualization.test.ts`.
 - Tests and commands run: `npm test` (105 tests passing, 3 skipped), `npm run typecheck` (0 errors), `npx tsx scripts/export-baseline-visualization.ts`.
-- Screenshots or raw benchmark artifacts when applicable: Saved raw JSON benchmark artifact to `results/baseline-comparison.json` and generated markdown report to `results/BASELINE_COMPARISON.md`.
+- Screenshots or raw benchmark artifacts when applicable: Saved raw JSON benchmark artifact to `results/baseline-comparison.json`.
 - Any changed assumptions, limitations, or follow-up issues: Preserved explicit performance regressions (e.g., +1.10 ms p95 latency penalty over unchecked TTL cache due to version snapshot validation) alongside freshness and resource gains.
 
 ## Single-owner assignment and parallel execution

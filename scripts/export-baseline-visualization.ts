@@ -1,11 +1,10 @@
 /**
- * Generates and saves the baseline comparison result artifact and markdown visualization report.
+ * Generates and saves the baseline comparison result artifact.
  */
 
 import path from "node:path";
 import {
   createDefaultBaselineArtifact,
-  renderFullVisualizationReport,
   saveBaselineArtifact,
 } from "../src/index.js";
 import fs from "node:fs/promises";
@@ -18,11 +17,6 @@ async function main(): Promise<void> {
   const jsonPath = path.join(resultsDir, "baseline-comparison.json");
   await saveBaselineArtifact(jsonPath, artifact);
   console.log(`Saved baseline comparison artifact to: ${jsonPath}`);
-
-  const report = renderFullVisualizationReport(artifact);
-  const mdPath = path.join(resultsDir, "BASELINE_COMPARISON.md");
-  await fs.writeFile(mdPath, report, "utf-8");
-  console.log(`Saved baseline comparison report to: ${mdPath}`);
 }
 
 main().catch((err) => {

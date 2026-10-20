@@ -169,7 +169,7 @@ Present the automated benchmark harness, comparing PolyFind against all four bas
 npx tsx scripts/export-baseline-visualization.ts
 ```
 
-### Display Generated ASCII Summary (`results/BASELINE_COMPARISON.md`)
+### Display Benchmark ASCII Visualization Summary
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │ P95 Tail Latency Comparison (Lower is Better)                                    │

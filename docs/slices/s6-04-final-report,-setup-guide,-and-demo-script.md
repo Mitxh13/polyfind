@@ -30,7 +30,7 @@ The directly responsible owner listed below is accountable for implementation, t
 ## Evidence to attach to PR
 - Acceptance criteria checked: All 4 acceptance criteria verified in `test/final-delivery.test.ts`.
 - Tests and commands run: `npm test` (110 tests passing, 3 skipped), `npm run typecheck` (0 errors), `npm run seed`.
-- Screenshots or raw benchmark artifacts when applicable: `docs/FINAL_REPORT.md` and `docs/DEMO_SCRIPT.md` reference exact committed benchmark outputs from `results/baseline-comparison.json` and `results/BASELINE_COMPARISON.md`.
+- Screenshots or raw benchmark artifacts when applicable: `docs/FINAL_REPORT.md` and `docs/DEMO_SCRIPT.md` reference exact committed benchmark outputs from `results/baseline-comparison.json`.
 - Any changed assumptions, limitations, or follow-up issues: Documented intentional latency regression (+1.10 ms p95 over unchecked cache) and negative/inconclusive ablation findings in Section 5 and 6 of `docs/FINAL_REPORT.md`.
 
 ## Single-owner assignment and parallel execution
