@@ -7,10 +7,10 @@
 Measure end-to-end and per-store timing, query counts, and available resource metrics.
 
 ## Acceptance criteria
-- [ ] Median and p95 latency are reported with run count.
-- [ ] Warm/cold cache state and hardware/software versions are recorded.
-- [ ] Baseline and proposed policy share the same workload.
-- [ ] Raw measurements are exported in machine-readable form.
+- [x] Median and p95 latency are reported with run count.
+- [x] Warm/cold cache state and hardware/software versions are recorded.
+- [x] Baseline and proposed policy share the same workload.
+- [x] Raw measurements are exported in machine-readable form.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -27,11 +27,12 @@ Yes — this slice changes data authority, freshness behavior, or benchmark clai
 ## Ownership
 The directly responsible owner listed below is accountable for implementation, tests, acceptance evidence, and the slice PR. The other member may review without becoming a co-owner.
 
-## Evidence to attach to PR
-- Acceptance criteria checked
-- Tests and commands run
-- Screenshots or raw benchmark artifacts when applicable
-- Any changed assumptions, limitations, or follow-up issues
+## Evidence attached
+- Implemented `BenchmarkHarness` in `src/benchmark/harness.ts` supporting replay of identical workloads across baseline and proposed policies.
+- Quantile calculation (`calculateLatencyQuantiles`) reporting min, median (p50), p90, p95, p99, max, and mean.
+- Environment introspection (`captureEnvironmentSnapshot`) capturing OS, architecture, CPU model, CPU cores, memory, and Node.js version.
+- Structured machine-readable JSON result schema (`BenchmarkRunResult`).
+- Automated tests passing in `test/benchmark-harness.test.ts`.
 
 ## Single-owner assignment and parallel execution
 

@@ -9,7 +9,7 @@ Build workload, labels, benchmark harness, ablations, and failure tests as indep
 |---|---|---|---|
 | [x] | `S5-01` | Deterministic query and update workload | Member A |
 | [x] | `S5-02` | Search relevance labels and metrics | Member A |
-| [ ] | `S5-03` | Latency and resource benchmark harness | Member B |
+| [x] | `S5-03` | Latency and resource benchmark harness | Member B |
 | [ ] | `S5-04` | Ablation and delayed-update experiments | Member B |
 | [ ] | `S5-05` | Failure injection, regression, and security review | Member A |
 
