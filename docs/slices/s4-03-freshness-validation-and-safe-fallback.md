@@ -7,10 +7,10 @@
 Implement freshness checks for derived candidates and authoritative validation for sensitive fields.
 
 ## Acceptance criteria
-- [ ] A stale derived version is detected in deterministic tests.
-- [ ] Price/stock shown to users are validated against MySQL or a documented trustworthy mechanism.
-- [ ] If validation cannot be completed, the behavior is explicit and tested.
-- [ ] Freshness violations are counted in benchmark output.
+- [x] A stale derived version is detected in deterministic tests.
+- [x] Price/stock shown to users are validated against MySQL or a documented trustworthy mechanism.
+- [x] If validation cannot be completed, the behavior is explicit and tested.
+- [x] Freshness violations are counted in benchmark output.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -32,6 +32,18 @@ The directly responsible owner listed below is accountable for implementation, t
 - Tests and commands run
 - Screenshots or raw benchmark artifacts when applicable
 - Any changed assumptions, limitations, or follow-up issues
+
+## Implementation evidence
+
+- `FreshnessValidator` compares vector/graph `sourceVersion` values with the
+  authoritative catalog product version.
+- Every returned product is read from the authoritative catalog, so stale
+  derived candidates cannot replace price or stock.
+- Missing versions, source versions ahead of authority, missing products, and
+  authority lookup failures are explicit `unverifiable` results and are not
+  safe to present in strict mode.
+- Validator telemetry records checked, fresh, stale, unverifiable, fallback,
+  and freshness-violation counts for benchmark integration.
 
 ## Single-owner assignment and parallel execution
 
