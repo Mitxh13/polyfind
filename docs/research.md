@@ -20,29 +20,15 @@ These are target user groups for the project, not evidence of market demand.
 ## Why now / why this team
 The project is suitable for a DBMS capstone because it provides hands-on work with relational transactions, caching, graph queries, vector retrieval, query planning, consistency, and measurable experiments.
 
-## What exists already / preliminary related-work map
-Adjacent research areas include:
-- Cost-based query planning across heterogeneous data stores.
-- Hybrid relational and vector query execution.
-- Adaptive selection among symbolic, graph, neural, and hybrid retrieval.
-- Cache invalidation and incremental search-index maintenance.
-- Freshness-aware caching and consistency/performance trade-offs.
-- Graph-enhanced retrieval and vector-search execution optimization.
+## What exists already / related-work map
 
-A preliminary targeted search has surfaced work including *Cost-based Optimization of Multistore Query Plans* (2023), *CHASE: A Native Relational Database for Hybrid Queries* (2025), *SymRAG* (2025), *EA-GraphRAG* (2026), *DYNAMICANN* (2026), and *FreshCache* (2026 preprint). Treat these as leads to verify: confirm exact bibliographic metadata, venue/status, technical method, assumptions, and overlap before citing them in a submission. This list is not a systematic review and does not prove the proposed gap is novel.
-
-### Literature review matrix
-
-The table below audits preliminary lead papers against their technical method, core assumptions, evaluated metrics, limitations, and overlap with PolyFind:
-
-| Candidate Paper / System | Method | Assumptions | Metrics | Limits | Overlap & Difference vs. PolyFind |
-|---|---|---|---|---|---|
-| *Cost-based Optimization of Multistore Query Plans* (2023) | Cost-based query plan generator across relational and NoSQL engines | Uniform or predictable network costs; stores are static during query execution | Total execution time, optimizer latency, plan cost accuracy | Does not model derived store staleness or transactional freshness violations | Shares multi-store cost-based dispatch; PolyFind uniquely enforces transactional freshness constraints and dynamic fallback on stale derived stores. |
-| *CHASE: A Native Relational Database for Hybrid Queries* (2025) | Unified internal relational engine executing combined relational filtering and vector similarity | Single unified DBMS engine; synchronous ACID updates across vector index | Latency, throughput, vector recall@k, filter pushdown efficiency | Requires specialized monolithic engine; does not address decoupled heterogeneous polyglot stores | Both evaluate hybrid structured + vector retrieval; PolyFind addresses heterogeneous stores (MySQL + external vector DB) under eventual consistency. |
-| *SymRAG* (2025) | Adaptive symbolic and neural retrieval router selecting retrieval tool by query type | Query classifier has near-zero runtime latency; all backends are assumed fresh | Tool selection accuracy, retrieval latency, response relevance | Assumes underlying stores are always up-to-date; no freshness check | Shares adaptive path selection based on query features; PolyFind extends routing to consider data freshness and cost constraints. |
-| *EA-GraphRAG* (2026) | Entity-augmented graph and vector hybrid retrieval for complex associative queries | Graph and vector representations are synchronized offline in batches | Graph traversal hop count, precision@k, retrieval recall | High indexing overhead; assumes read-mostly workload without continuous writes | Uses graph and vector fusion; PolyFind focuses on online update handling and preventing stale graph/vector candidates from corrupting authoritative facts. |
-| *DYNAMICANN* (2026) | Dynamic vector indexing under continuous streaming insertions and deletions | In-memory index structure with high memory headroom; isolated to vector domain | Ingestion throughput, build time, recall@k under dynamic updates | Confined to vector index internals; lacks cross-store transactional coordination | Addresses dynamic updates in vector stores; PolyFind addresses cross-store coordination across relational, cache, graph, and vector stores. |
-| *FreshCache* (2026 preprint) | Freshness-aware cache invalidation and query bypass for dynamic web workloads | Key-value cache with bounded staleness tolerances per query | Stale read rate, cache hit ratio, tail latency reduction | Focuses on single KV cache layer; does not address multi-representation retrieval fusion | Directly relevant to PolyFind's Redis cache tier; PolyFind extends freshness validation across multiple derived stores (cache, graph, vector). |
+Adjacent research and engineering practice cover polystores, adaptive query
+processing, hybrid retrieval, and cache invalidation. The verified, scoped
+matrix is maintained in
+[`RESEARCH_CLAIMS_AND_RELATED_WORK.md`](./RESEARCH_CLAIMS_AND_RELATED_WORK.md).
+Earlier speculative paper leads were removed from this overview rather than
+being treated as verified citations. The matrix is targeted, not a systematic
+review, and does not establish novelty.
 
 ### Literature matrix template for ongoing review
 
@@ -104,4 +90,3 @@ Measure Precision@K, Recall@K, NDCG@K, freshness violation rate, update visibili
 
 ## Research exit check
 Do not claim the gap is established until a reproducible literature matrix covers the closest work and documents method, assumptions, metrics, limitations, and differences from PolyFind.
-
