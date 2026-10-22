@@ -42,7 +42,7 @@ The directly responsible owner listed below is accountable for implementation, t
   vector updates, safe degradation, and authoritative price/stock fallback.
 - Security regression tests verify credential redaction, safe adapter/API
   payloads, missing-configuration handling, and absence of stack traces.
-- Full regression result: 126 tests passed before this slice; S5-05 adds five
+- Full regression result: 126 tests passed before this slice; S5-05 adds eight
   failure/security tests and the final suite result is recorded in the PR.
 
 ## Single-owner assignment and parallel execution
