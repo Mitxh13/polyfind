@@ -7,7 +7,7 @@ Analyze results, prepare research evidence and deliverables, and verify the syst
 
 | Status | Slice | Title | Owner |
 |---|---|---|---|
-| [ ] | `S6-01` | Repeated runs and statistical summaries | Member A |
+| [x] | `S6-01` | Repeated runs and statistical summaries | Member A |
 | [x] | `S6-02` | Baseline comparison and result visualization | Member B |
 | [ ] | `S6-03` | Research claims, limitations, and related-work matrix | Member A |
 | [x] | `S6-04` | Final report, setup guide, and demo script | Member B |
