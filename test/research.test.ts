@@ -40,23 +40,11 @@ test("docs/research.md labels research claims as formal hypotheses", () => {
   assert.match(research, /No claim of novelty or superiority is accepted without empirical evidence/i);
 });
 
-test("docs/research.md includes a literature matrix and ongoing review template", () => {
+test("docs/research.md points to the verified literature matrix and ongoing review template", () => {
   const research = fs.readFileSync(researchPath, "utf-8");
 
-  // Verify literature review matrix table exists with required dimensions
-  assert.match(research, /### Literature review matrix/i);
-  assert.match(
-    research,
-    /\|\s*Method\s*\|\s*Assumptions\s*\|\s*Metrics\s*\|\s*Limits\s*\|\s*Overlap/i
-  );
-
-  // Verify candidate works are audited
-  assert.match(research, /Cost-based Optimization of Multistore Query Plans/i);
-  assert.match(research, /CHASE/i);
-  assert.match(research, /SymRAG/i);
-  assert.match(research, /EA-GraphRAG/i);
-  assert.match(research, /DYNAMICANN/i);
-  assert.match(research, /FreshCache/i);
+  assert.match(research, /RESEARCH_CLAIMS_AND_RELATED_WORK\.md/i);
+  assert.match(research, /Earlier speculative paper leads were removed/i);
 
   // Verify ongoing template exists
   assert.match(research, /### Literature matrix template for ongoing review/i);
