@@ -2,21 +2,86 @@
 
 PolyFind is a research-oriented multi-database search application exploring freshness-constrained adaptive retrieval across heterogeneous databases.
 
-## Start here
-1. Read `AGENTS.md`.
-2. Read `docs/research.md`.
-3. Review and approve `docs/PRD.md`.
-4. Review `docs/ARCHITECTURE.md` and the ADRs.
-5. Execute one slice at a time from `docs/sprints/` and `docs/slices/`.
+## Clean-room setup and verification
+
+PolyFind is a local-first TypeScript research prototype. The deterministic
+verification path does not require MySQL, Redis, Neo4j, a vector service, or
+any real credentials. Node.js 20+ and npm 10+ are recommended.
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/Mitxh13/polyfind.git
+cd polyfind
+npm install
+```
+
+On Windows PowerShell, use `Set-Location` or open the cloned directory in VS
+Code. Do not commit a `.env` file.
+
+### 2. Configure only if using the optional database path
+
+```bash
+cp .env.example .env
+```
+
+Use `Copy-Item .env.example .env` in PowerShell. `.env.example` documents the
+variable names; replace placeholders only with local, uncommitted values. The
+offline tests and deterministic benchmark export do not require this file.
+
+### 3. Run the deterministic verification
+
+```bash
+npm run typecheck
+npm test
+```
+
+The full suite covers contracts, catalog behavior, retrieval, freshness,
+failure handling, benchmark statistics, documentation, and acceptance
+integrity.
+
+### 4. Optional MySQL migration and deterministic seed
+
+Start a local MySQL instance and configure `DATABASE_URL` in `.env`, then run:
+
+```bash
+npm run migrate
+npm run seed -- --seed=42 --count=50
+```
+
+Migration requires a reachable MySQL server. The seed script always validates
+the deterministic dataset and inserts it only when `DATABASE_URL` is set;
+without a reachable database it reports the live insertion failure and exits
+after the local generation path. Never use production credentials.
+
+### 5. Export the benchmark artifact
+
+```bash
+npx tsx scripts/export-baseline-visualization.ts
+```
+
+This writes `results/baseline-comparison.json`, which is generated and ignored
+by Git. The committed
+[`test/fixtures/baseline-comparison.json`](test/fixtures/baseline-comparison.json)
+is the stable evidence used by documentation tests. See
+[`docs/ACCEPTANCE_CHECKLIST.md`](docs/ACCEPTANCE_CHECKLIST.md) for the complete
+PRD mapping and [`docs/VIVA_PREPARATION.md`](docs/VIVA_PREPARATION.md) for
+defense notes.
+
+### 6. Read the project contracts
+
+1. Read [`AGENTS.md`](AGENTS.md).
+2. Review [`docs/PRD.md`](docs/PRD.md),
+   [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and the ADRs.
+3. Use [`docs/FINAL_REPORT.md`](docs/FINAL_REPORT.md) and
+   [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) for the final presentation.
 
 ## Current repository status
 
-This repository is the planning baseline plus the S1-04 TypeScript contract
-layer. It is not yet a complete Next.js application and does not include
-database migrations or live integrations. Install the development dependencies
-and run the contract checks with `npm install`, `npm test`, and
-`npm run typecheck`. Begin with the assigned Sprint 1 slices; do not treat the
-placeholder values in `.env.example` as working credentials.
+The repository contains the implemented research prototype, deterministic
+benchmark harness, and optional local database migrations. It is not a
+production deployment and does not include a `dev` server command. Do not treat
+the placeholder values in `.env.example` as working credentials.
 
 ## Current Project direction
 **PolyFind: Freshness-Constrained Adaptive Retrieval Across Heterogeneous Databases**
@@ -95,4 +160,3 @@ All team members and agents follow the rules in `AGENTS.md` and the parallel exe
 - `docs/slices/` — individually executable, testable tasks
 - `docs/contracts.md` — S1-04 typed boundaries, validation, interfaces, and examples
 - `AGENTS.md` — coding-agent operating rules
-

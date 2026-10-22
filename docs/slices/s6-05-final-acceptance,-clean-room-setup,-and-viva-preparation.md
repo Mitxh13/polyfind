@@ -7,10 +7,10 @@
 Perform a clean setup and verify every PRD success criterion.
 
 ## Acceptance criteria
-- [ ] A team member who did not implement the setup follows the README successfully.
-- [ ] Acceptance checklist maps PRD criteria to test/report evidence.
-- [ ] Known limitations and fallback behavior are documented.
-- [ ] Final demo and viva notes explain design, baselines, metrics, and research limits.
+- [x] A team member who did not implement the setup follows the README successfully.
+- [x] Acceptance checklist maps PRD criteria to test/report evidence.
+- [x] Known limitations and fallback behavior are documented.
+- [x] Final demo and viva notes explain design, baselines, metrics, and research limits.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
