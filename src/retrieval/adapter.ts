@@ -3,6 +3,7 @@ import type {
   RetrievalProvider,
   RetrievalRequest,
 } from "../contracts/types.js";
+import { sanitizeOperationalError } from "../config/environment.js";
 import { validateCandidate } from "./candidate.js";
 
 export interface AdapterExecutionResult {
@@ -48,8 +49,6 @@ export async function executeRetrievalAdapter(
     };
   } catch (error) {
     const elapsedMs = Math.round((performance.now() - start) * 100) / 100;
-    const message = error instanceof Error ? error.message : String(error);
-
     return {
       source: adapter.name,
       candidates: [],
@@ -57,7 +56,7 @@ export async function executeRetrievalAdapter(
       success: false,
       error: {
         code: "ADAPTER_RETRIEVAL_FAILED",
-        message,
+        message: sanitizeOperationalError(error),
       },
     };
   }
