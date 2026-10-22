@@ -7,10 +7,10 @@
 Finalize the related-work matrix and align claims with literature and experimental evidence.
 
 ## Acceptance criteria
-- [ ] Closest prior works include verified bibliographic details and method comparisons.
-- [ ] The report distinguishes established knowledge, proposed method, and measured findings.
-- [ ] Novelty wording is limited to what the evidence supports.
-- [ ] Threats to validity and limitations are explicit.
+- [x] Closest prior works include verified bibliographic details and method comparisons.
+- [x] The report distinguishes established knowledge, proposed method, and measured findings.
+- [x] Novelty wording is limited to what the evidence supports.
+- [x] Threats to validity and limitations are explicit.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
