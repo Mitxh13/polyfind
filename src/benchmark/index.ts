@@ -68,3 +68,21 @@ export {
   type BaselineComparisonArtifact,
   type BarChartOptions,
 } from "./visualization.js";
+
+export {
+  summarizeSamples,
+  summarizeFreshnessViolations,
+  type ConfidenceInterval,
+  type StatisticalSummary,
+  type FreshnessRateSummary,
+} from "./statistics.js";
+
+export {
+  RepeatedBenchmarkRunner,
+  saveRepeatedBenchmarkArtifact,
+  loadRepeatedBenchmarkArtifact,
+  type RepeatedBenchmarkArtifact,
+  type RepeatedBenchmarkConfiguration,
+  type RepeatedBenchmarkTarget,
+  type StrategyRepeatedSummary,
+} from "./repeated-runs.js";
