@@ -5,6 +5,7 @@ export * from "./contracts/validation.js";
 export * from "./catalog/index.js";
 export * from "./retrieval/index.js";
 export * from "./fusion/index.js";
+export * from "./planner/index.js";
 export * from "./sync/index.js";
 export * from "./benchmark/index.js";
 export * from "./config/index.js";
