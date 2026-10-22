@@ -53,6 +53,27 @@ export function redactSecret(value: string): string {
 }
 
 /**
+ * Produces a safe operational error message for logs and API-facing results.
+ * Detailed provider errors must not cross this boundary.
+ */
+export function sanitizeOperationalError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "The requested operation could not be completed.";
+  }
+
+  const message = error.message;
+  const containsSensitiveData =
+    /(?:mysql|postgres|redis|neo4j|bolt):\/\/[^@\s]+@/i.test(message) ||
+    /(?:password|passwd|secret|token|api[_-]?key)\s*[:=]\s*["']?[^"',\s]+/i.test(message) ||
+    /authorization:\s*bearer\s+\S+/i.test(message);
+
+  if (containsSensitiveData) {
+    return "The requested operation failed because a dependent store was unavailable.";
+  }
+  return message;
+}
+
+/**
  * Loads process.env or falls back to an explicit dictionary.
  */
 export function getEnvironmentMap(source?: NodeJS.ProcessEnv): Record<string, string | undefined> {

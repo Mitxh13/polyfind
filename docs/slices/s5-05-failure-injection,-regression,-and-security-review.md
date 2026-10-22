@@ -7,10 +7,10 @@
 Test behavior when derived stores lag or are unavailable; review input validation and secret handling.
 
 ## Acceptance criteria
-- [ ] Tests cover delayed Redis/Neo4j/vector updates or controlled unavailability.
-- [ ] The system degrades according to documented behavior and protects authoritative fields.
-- [ ] No secrets appear in logs or test artifacts.
-- [ ] Regression suite passes.
+- [x] Tests cover delayed Redis/Neo4j/vector updates or controlled unavailability.
+- [x] The system degrades according to documented behavior and protects authoritative fields.
+- [x] No secrets appear in logs or test artifacts.
+- [x] Regression suite passes.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -32,6 +32,18 @@ The directly responsible owner listed below is accountable for implementation, t
 - Tests and commands run
 - Screenshots or raw benchmark artifacts when applicable
 - Any changed assumptions, limitations, or follow-up issues
+
+## Implementation evidence
+
+- `FailureInjectionHarness` provides deterministic delay and unavailability
+  controls around replaceable retrieval providers without contacting shared
+  infrastructure.
+- Failure tests cover simulated Redis, Neo4j, and vector outages, delayed
+  vector updates, safe degradation, and authoritative price/stock fallback.
+- Security regression tests verify credential redaction, safe adapter/API
+  payloads, missing-configuration handling, and absence of stack traces.
+- Full regression result: 126 tests passed before this slice; S5-05 adds eight
+  failure/security tests and the final suite result is recorded in the PR.
 
 ## Single-owner assignment and parallel execution
 
