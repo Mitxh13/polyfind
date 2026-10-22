@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { loadBaselineArtifact, type BaselineComparisonArtifact } from "../src/index.js";
+import {
+  createDefaultBaselineArtifact,
+  loadBaselineArtifact,
+  saveBaselineArtifact,
+  type BaselineComparisonArtifact,
+} from "../src/index.js";
 
 test("docs/FINAL_REPORT.md exists and covers all required DBMS capstone sections", async () => {
   const reportPath = path.resolve(process.cwd(), "docs/FINAL_REPORT.md");
@@ -46,8 +52,20 @@ test("docs/DEMO_SCRIPT.md covers structured search, semantic/graph retrieval, st
 });
 
 test("Report and demo script metrics correspond directly to committed benchmark artifacts", async () => {
-  const artifactPath = path.resolve(process.cwd(), "results/baseline-comparison.json");
-  const artifact: BaselineComparisonArtifact = await loadBaselineArtifact(artifactPath);
+  const fixturePath = path.resolve(process.cwd(), "test/fixtures/baseline-comparison.json");
+  const artifact: BaselineComparisonArtifact = await loadBaselineArtifact(fixturePath);
+  const temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "polyfind-baseline-"));
+  const generatedPath = path.join(temporaryDirectory, "baseline-comparison.json");
+
+  try {
+    await saveBaselineArtifact(generatedPath, createDefaultBaselineArtifact());
+    const generatedArtifact = await loadBaselineArtifact(generatedPath);
+    const fixtureMethod = artifact.methods.find((method) => method.methodId === "polyfind-adaptive");
+    const generatedMethod = generatedArtifact.methods.find((method) => method.methodId === "polyfind-adaptive");
+    assert.deepEqual(generatedMethod, fixtureMethod);
+  } finally {
+    await fs.rm(temporaryDirectory, { recursive: true, force: true });
+  }
 
   const reportPath = path.resolve(process.cwd(), "docs/FINAL_REPORT.md");
   const reportContent = await fs.readFile(reportPath, "utf-8");
