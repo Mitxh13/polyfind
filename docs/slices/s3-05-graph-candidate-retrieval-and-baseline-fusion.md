@@ -7,10 +7,10 @@
 Implement one graph query and a documented simple fusion baseline for candidates from SQL, vector, and graph retrieval.
 
 ## Acceptance criteria
-- [ ] Graph retrieval returns stable IDs and source metadata.
-- [ ] Fusion deduplicates candidates deterministically.
-- [ ] A fixture verifies ranking tie-break behavior.
-- [ ] Baseline strategy is documented for later fair comparison.
+- [x] Graph retrieval returns stable IDs and source metadata.
+- [x] Fusion deduplicates candidates deterministically.
+- [x] A fixture verifies ranking tie-break behavior.
+- [x] Baseline strategy is documented for later fair comparison.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -32,6 +32,16 @@ The directly responsible owner listed below is accountable for implementation, t
 - Tests and commands run
 - Screenshots or raw benchmark artifacts when applicable
 - Any changed assumptions, limitations, or follow-up issues
+
+## Implementation evidence
+
+- `GraphRetrievalAdapter` traverses graph product/category nodes and
+  `RELATED_TO` edges, returning stable product IDs, `source: "graph"`, and
+  graph source versions.
+- `BaselineFusionStrategy` uses maximum score deduplication with deterministic
+  SQL/vector/graph source-priority and product-ID tie-breaking.
+- Detailed baseline behavior is recorded in
+  [ADR-004](../decisions/ADR-004-baseline-candidate-fusion.md).
 
 ## Single-owner assignment and parallel execution
 

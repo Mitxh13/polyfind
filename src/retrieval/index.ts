@@ -42,3 +42,11 @@ export {
   VectorSemanticRetrievalAdapter,
   type VectorAdapterDiagnostics,
 } from "./vector-adapter.js";
+
+export {
+  GraphRetrievalAdapter,
+  GraphCandidateRetrievalAdapter,
+  Neo4jGraphRetrievalAdapter,
+  createGraphRetrievalAdapter,
+  type GraphCandidateStorage,
+} from "./graph-adapter.js";
