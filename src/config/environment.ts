@@ -61,11 +61,16 @@ export function sanitizeOperationalError(error: unknown): string {
     return "The requested operation could not be completed.";
   }
 
-  return error.message
-    .replace(/(?:mysql|postgres|redis|neo4j|bolt):\/\/[^@\s]+@/gi, "$1://[REDACTED]@")
-    .replace(/(?:password|passwd|secret|token|api[_-]?key)\s*[:=]\s*["']?[^"',\s]+/gi, "$1=[REDACTED]")
-    .replace(/authorization:\s*bearer\s+\S+/gi, "authorization: bearer [REDACTED]")
-    .replace(/.+/s, "The requested operation failed because a dependent store was unavailable.");
+  const message = error.message;
+  const containsSensitiveData =
+    /(?:mysql|postgres|redis|neo4j|bolt):\/\/[^@\s]+@/i.test(message) ||
+    /(?:password|passwd|secret|token|api[_-]?key)\s*[:=]\s*["']?[^"',\s]+/i.test(message) ||
+    /authorization:\s*bearer\s+\S+/i.test(message);
+
+  if (containsSensitiveData) {
+    return "The requested operation failed because a dependent store was unavailable.";
+  }
+  return message;
 }
 
 /**
