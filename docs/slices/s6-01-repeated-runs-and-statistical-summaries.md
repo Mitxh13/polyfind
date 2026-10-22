@@ -7,9 +7,9 @@
 Repeat final experiments and summarize variability with suitable statistical summaries.
 
 ## Acceptance criteria
-- [ ] Run count and summary method are documented.
-- [ ] Results include variability, not just best-case values.
-- [ ] Configuration and raw data can reproduce the summaries.
+- [x] Run count and summary method are documented.
+- [x] Results include variability, not just best-case values.
+- [x] Configuration and raw data can reproduce the summaries.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -31,6 +31,19 @@ The directly responsible owner listed below is accountable for implementation, t
 - Tests and commands run
 - Screenshots or raw benchmark artifacts when applicable
 - Any changed assumptions, limitations, or follow-up issues
+
+## Implementation evidence
+
+- `RepeatedBenchmarkRunner` executes configurable warmup and measured runs
+  against comparable benchmark targets using the same workload factory and
+  seed.
+- `summarizeSamples` reports mean, median/p50, p95, p99, quartiles, IQR,
+  sample variance, sample standard deviation, min/max, and a 95% normal
+  approximation confidence interval for the sample mean.
+- JSON artifacts preserve configuration, run counts, warmups, hardware/runtime
+  metadata, per-run raw metrics, and summarized freshness violation rates.
+- The confidence interval is descriptive uncertainty only; this slice does
+  not claim statistical significance.
 
 ## Single-owner assignment and parallel execution
 
