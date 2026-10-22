@@ -7,10 +7,10 @@
 Implement a fixed multi-store baseline and a first adaptive policy using documented query classes, freshness requirements, and measured costs.
 
 ## Acceptance criteria
-- [ ] Planner decisions are logged with non-sensitive reason codes.
-- [ ] Fixed and adaptive modes can be run on the same workload.
-- [ ] The adaptive policy is deterministic given the same configuration and observations.
-- [ ] Decision logic and thresholds are documented before final evaluation.
+- [x] Planner decisions are logged with non-sensitive reason codes.
+- [x] Fixed and adaptive modes can be run on the same workload.
+- [x] The adaptive policy is deterministic given the same configuration and observations.
+- [x] Decision logic and thresholds are documented before final evaluation.
 
 ## Dependencies
 Use the prerequisite/interface contract below and review `docs/ARCHITECTURE.md` plus the relevant sprint plan. Do not wait for unrelated upstream implementation when fixtures or mocks are sufficient.
@@ -32,6 +32,17 @@ The directly responsible owner listed below is accountable for implementation, t
 - Tests and commands run
 - Screenshots or raw benchmark artifacts when applicable
 - Any changed assumptions, limitations, or follow-up issues
+
+## Implementation evidence
+
+- `RetrievalPlanner` exposes MySQL-only, vector-only, fixed-all-stores, and
+  adaptive routing plans through one request/configuration contract.
+- Adaptive routing classifies keyword, filtered, semantic, and relationship
+  queries, applies an explicit latency budget, and falls back to MySQL when a
+  derived source is stale or unverifiable in strict mode.
+- Decision logs contain only route, query class, estimated latency, stores, and
+  stable reason codes such as `FRESHNESS_FALLBACK` and
+  `VECTOR_COST_EXCEEDED`.
 
 ## Single-owner assignment and parallel execution
 

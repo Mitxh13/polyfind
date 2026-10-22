@@ -10,3 +10,19 @@ export {
   type FreshnessTelemetry,
   type FreshnessValidatedCandidate,
 } from "./freshness.js";
+
+export {
+  RetrievalPlanner,
+  Planner,
+  createPlanner,
+  classifyPlannerQuery,
+  type PlannerConfiguration,
+  type PlannerCostObservation,
+  type PlannerDecision,
+  type PlannerDecisionLog,
+  type PlannerMode,
+  type PlannerPlan,
+  type PlannerQueryClass,
+  type PlannerReasonCode,
+  type PlannerStore,
+} from "./routing.js";
