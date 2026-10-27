@@ -92,15 +92,19 @@ export class SearchApiClient {
       };
     }
 
-    // Live mode: POST /api/search
+    // Live mode: GET /api/search
     const url = new URL("/api/search", this.baseUrl || "http://localhost:3000");
+    url.searchParams.set("q", request.query);
+    url.searchParams.set("page", String(request.page));
+    url.searchParams.set("limit", String(request.limit));
+    url.searchParams.set("freshnessMode", request.freshnessMode);
+    if (request.filters.categoryId) url.searchParams.set("categoryId", request.filters.categoryId);
+    if (request.filters.minPrice !== undefined) url.searchParams.set("minPrice", String(request.filters.minPrice));
+    if (request.filters.maxPrice !== undefined) url.searchParams.set("maxPrice", String(request.filters.maxPrice));
+    if (request.filters.inStock !== undefined) url.searchParams.set("inStock", String(request.filters.inStock));
     const response = await fetch(url.toString(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(request),
+      method: "GET",
+      headers: { Accept: "application/json" },
     });
 
     if (!response.ok) {

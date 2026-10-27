@@ -80,8 +80,21 @@ defense notes.
 
 The repository contains the implemented research prototype, deterministic
 benchmark harness, and optional local database migrations. It is not a
-production deployment and does not include a `dev` server command. Do not treat
+production deployment. It includes a local deterministic demo API via
+`npm run api`; do not treat
 the placeholder values in `.env.example` as working credentials.
+
+### Local API
+
+Start the offline demo API with:
+
+```powershell
+npm run api
+```
+
+See [`docs/API.md`](docs/API.md) for the endpoint contract and examples. The
+default catalogue is deterministic demo data. MySQL remains the authoritative
+source when a MySQL-backed catalog is explicitly configured.
 
 ## Current Project direction
 **PolyFind: Freshness-Constrained Adaptive Retrieval Across Heterogeneous Databases**
