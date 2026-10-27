@@ -5,7 +5,7 @@
   "description": "PolyFind contract and architecture baseline",
   "type": "module",
   "scripts": {
-    "test": "tsx --test",
+    "test": "tsx --test --test-concurrency=1",
     "typecheck": "tsc --noEmit",
     "migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed-catalog.ts"
