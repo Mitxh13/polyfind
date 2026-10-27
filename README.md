@@ -54,6 +54,10 @@ the deterministic dataset and inserts it only when `DATABASE_URL` is set;
 without a reachable database it reports the live insertion failure and exits
 after the local generation path. Never use production credentials.
 
+For the complete catalogue model, synthetic-data labeling, safe reset guidance,
+and supported optional-service boundaries, see
+[`docs/CATALOGUE_DATA_READINESS.md`](docs/CATALOGUE_DATA_READINESS.md).
+
 ### 5. Export the benchmark artifact
 
 ```bash

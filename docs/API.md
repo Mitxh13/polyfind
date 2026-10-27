@@ -10,6 +10,9 @@ The default server uses the deterministic, clearly synthetic demo catalogue
 (`seed=42`, 50 products). It does not require MySQL, Redis, Neo4j, a vector
 service, credentials, or internet access.
 
+Catalogue fields and database/demo setup are documented in
+[`docs/CATALOGUE_DATA_READINESS.md`](./CATALOGUE_DATA_READINESS.md).
+
 ## Endpoints
 
 ### `GET /api/health`

@@ -1,6 +1,9 @@
 export type ProductId = string;
 export type CategoryId = string;
 export type SourceVersion = number;
+export type CurrencyCode = string;
+export type ProductAvailability = "in-stock" | "out-of-stock" | "unknown";
+export type ProductDataSource = "demo" | "catalog";
 
 export interface Category {
   id: CategoryId;
@@ -9,11 +12,19 @@ export interface Category {
 
 export interface Product {
   id: ProductId;
+  /** Canonical product title. Kept as `name` for compatibility with existing contracts. */
   name: string;
   description: string;
   categoryId: CategoryId;
   price: number;
+  currency?: CurrencyCode;
   stock: number;
+  availability?: ProductAvailability;
+  brand?: string;
+  attributes?: Record<string, string>;
+  imageUrl?: string;
+  productUrl?: string;
+  dataSource?: ProductDataSource;
   version: SourceVersion;
   updatedAt: string;
 }

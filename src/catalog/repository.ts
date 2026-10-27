@@ -45,7 +45,14 @@ interface ProductRow extends RowDataPacket {
   description: string;
   category_id: string;
   price: string | number;
+  currency: string | null;
   stock: number;
+  availability: Product["availability"] | null;
+  brand: string | null;
+  attributes: Record<string, string> | string | null;
+  image_url: string | null;
+  product_url: string | null;
+  data_source: Product["dataSource"] | null;
   version: number;
   updated_at: Date | string;
 }
@@ -62,7 +69,10 @@ export function mapRowToProduct(row: ProductRow): Product {
       ? row.updated_at.toISOString()
       : new Date(row.updated_at).toISOString();
 
-  return {
+  const attributes = typeof row.attributes === "string"
+    ? JSON.parse(row.attributes) as Record<string, string>
+    : row.attributes ?? undefined;
+  const product: Product = {
     id: String(row.id),
     name: String(row.name),
     description: String(row.description),
@@ -72,6 +82,14 @@ export function mapRowToProduct(row: ProductRow): Product {
     version: Number(row.version),
     updatedAt,
   };
+  if (row.currency !== null) product.currency = row.currency;
+  if (row.availability !== null && row.availability !== undefined) product.availability = row.availability;
+  if (row.brand !== null) product.brand = row.brand;
+  if (attributes !== undefined) product.attributes = attributes;
+  if (row.image_url !== null) product.imageUrl = row.image_url;
+  if (row.product_url !== null) product.productUrl = row.product_url;
+  if (row.data_source !== null && row.data_source !== undefined) product.dataSource = row.data_source;
+  return product;
 }
 
 export class CatalogRepository {
@@ -125,7 +143,7 @@ export class CatalogRepository {
 
     try {
       const [rows] = await this.pool.query<ProductRow[]>(
-        "SELECT id, name, description, category_id, price, stock, version, updated_at FROM products WHERE id = ?",
+        "SELECT id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, updated_at FROM products WHERE id = ?",
         [id],
       );
       const row = rows[0];
@@ -193,7 +211,7 @@ export class CatalogRepository {
       const total = Number(countRows[0]?.["total"] ?? 0);
 
       const itemsSql = `
-        SELECT id, name, description, category_id, price, stock, version, updated_at
+        SELECT id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, updated_at
         FROM products
         ${whereSql}
         ORDER BY id ASC
@@ -243,15 +261,22 @@ export class CatalogRepository {
       await connection.beginTransaction();
 
       await connection.query(
-        `INSERT INTO products (id, name, description, category_id, price, stock, version)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO products (id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           input.id.trim(),
           input.name.trim(),
           input.description.trim(),
           input.categoryId.trim(),
           input.price,
+          "USD",
           input.stock,
+          input.stock > 0 ? "in-stock" : "out-of-stock",
+          null,
+          null,
+          null,
+          null,
+          "catalog",
           version,
         ],
       );
@@ -263,7 +288,7 @@ export class CatalogRepository {
       );
 
       const [rows] = await connection.query<ProductRow[]>(
-        "SELECT id, name, description, category_id, price, stock, version, updated_at FROM products WHERE id = ?",
+        "SELECT id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, updated_at FROM products WHERE id = ?",
         [input.id.trim()],
       );
 
@@ -373,7 +398,7 @@ export class CatalogRepository {
 
       // Fetch the updated product
       const [updatedRows] = await connection.query<ProductRow[]>(
-        "SELECT id, name, description, category_id, price, stock, version, updated_at FROM products WHERE id = ?",
+        "SELECT id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, updated_at FROM products WHERE id = ?",
         [id],
       );
 

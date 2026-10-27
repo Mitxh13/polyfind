@@ -52,6 +52,17 @@ test("001_initial_schema.sql declares explicit primary keys, foreign keys, and d
   assert.match(sql, /CONSTRAINT\s+chk_product_version_positive\s+CHECK\s*\(version\s*>\s*0\)/i);
 });
 
+test("003_catalog_metadata.sql defines optional catalogue metadata without duplicating the base schema", async () => {
+  const files = await getAvailableMigrationFiles();
+  const metadataMigration = files.find((f) => f.name === "003_catalog_metadata.sql");
+  assert.ok(metadataMigration, "Metadata migration file not found");
+  const sql = await fs.readFile(metadataMigration.fullPath, "utf-8");
+  for (const column of ["currency", "availability", "brand", "attributes", "image_url", "product_url", "data_source"]) {
+    assert.match(sql, new RegExp(`ADD COLUMN IF NOT EXISTS\\s+${column}\\b`, "i"));
+  }
+  assert.match(sql, /SET availability = CASE WHEN stock > 0 THEN 'in-stock' ELSE 'out-of-stock' END/i);
+});
+
 test("parseDatabaseUrl throws informative error without secrets when DATABASE_URL is missing", () => {
   assert.throws(
     () => parseDatabaseUrl(""),

@@ -79,8 +79,9 @@ export const CANONICAL_CATEGORIES: readonly Category[] = [
   { id: "cat-audio", name: "Pro Audio & Headphones" },
 ];
 
-const PRODUCT_VOCABULARY: Record<CategoryId, { adjectives: string[]; nouns: string[]; descriptions: string[] }> = {
+const PRODUCT_VOCABULARY: Record<CategoryId, { brands: string[]; adjectives: string[]; nouns: string[]; descriptions: string[] }> = {
   "cat-outdoors": {
+    brands: ["Summit Forge", "Trailcraft", "Northstar Works"],
     adjectives: ["Ultralight", "Waterproof", "Insulated", "Heavy-Duty", "Compact", "Thermal", "All-Weather"],
     nouns: ["Backpack", "Tent", "Sleeping Bag", "Water Bottle", "Camp Stove", "Lantern", "Trekking Poles"],
     descriptions: [
@@ -91,6 +92,7 @@ const PRODUCT_VOCABULARY: Record<CategoryId, { adjectives: string[]; nouns: stri
     ],
   },
   "cat-electronics": {
+    brands: ["Pixel Harbor", "Circuit Grove", "Signal Foundry"],
     adjectives: ["Wireless", "Mechanical", "Ultra-Slim", "High-Speed", "Ergonomic", "Fast-Charging", "Modular"],
     nouns: ["Keyboard", "Mouse", "Monitor Hub", "USB-C Cable", "Power Bank", "Webcam", "Docking Station"],
     descriptions: [
@@ -101,6 +103,7 @@ const PRODUCT_VOCABULARY: Record<CategoryId, { adjectives: string[]; nouns: stri
     ],
   },
   "cat-kitchen": {
+    brands: ["Hearth & Mill", "Copperline", "Daily Grind Co."],
     adjectives: ["Stainless Steel", "Cast Iron", "Ceramic", "Precision", "Non-Stick", "Manual", "Double-Walled"],
     nouns: ["Chef Knife", "Coffee Dripper", "Burr Grinder", "Skillet", "Espresso Tamper", "Kettle", "Cutting Board"],
     descriptions: [
@@ -111,6 +114,7 @@ const PRODUCT_VOCABULARY: Record<CategoryId, { adjectives: string[]; nouns: stri
     ],
   },
   "cat-fitness": {
+    brands: ["Motion Forge", "Corewell", "Peak Practice"],
     adjectives: ["Adjustable", "High-Density", "Heavy-Duty", "Textured", "Non-Slip", "Elastic", "Ergonomic"],
     nouns: ["Dumbbell Set", "Yoga Mat", "Resistance Bands", "Kettlebell", "Foam Roller", "Jump Rope", "Pull-Up Bar"],
     descriptions: [
@@ -121,6 +125,7 @@ const PRODUCT_VOCABULARY: Record<CategoryId, { adjectives: string[]; nouns: stri
     ],
   },
   "cat-audio": {
+    brands: ["Studio North", "Resonant Lab", "Clearwave"],
     adjectives: ["Active Noise-Cancelling", "Studio-Grade", "Hi-Res", "Open-Back", "Closed-Back", "Wireless", "Over-Ear"],
     nouns: ["Headphones", "Microphone", "Audio Interface", "Monitor Speakers", "IEM Earphones", "DAC Amplifier"],
     descriptions: [
@@ -150,11 +155,12 @@ export function generateSeedDataset(options: { seed?: number; productCount?: num
     const adj = rng.choice(vocab.adjectives);
     const noun = rng.choice(vocab.nouns);
     const desc = rng.choice(vocab.descriptions);
+    const brand = rng.choice(vocab.brands);
 
     const padIndex = String(i).padStart(4, "0");
     const id = `prod-${padIndex}`;
     const name = `${adj} ${noun} ${category.name.split(" ")[0]} Model ${rng.nextInt(100, 999)}`;
-    const description = `${desc} Perfect choice for demanding users.`;
+    const description = `${desc} ${category.id === "cat-outdoors" ? "Designed for backpacking and demanding users." : category.id === "cat-electronics" ? "Compatible with keyboards and modern workstations." : "Perfect choice for demanding users."}`;
     const price = rng.nextFloat(9.99, 499.99, 2);
     const stock = rng.nextInt(0, 150);
     const version = 1;
@@ -166,7 +172,15 @@ export function generateSeedDataset(options: { seed?: number; productCount?: num
       description,
       categoryId: category.id,
       price,
+      currency: "USD",
       stock,
+      availability: stock > 0 ? "in-stock" : "out-of-stock",
+      brand,
+      attributes: {
+        material: category.id === "cat-electronics" ? "aluminum" : category.id === "cat-kitchen" ? "stainless steel" : "recycled composite",
+        finish: rng.choice(["matte", "textured", "satin"]),
+      },
+      dataSource: "demo",
       version,
       updatedAt,
     });
@@ -213,6 +227,9 @@ export function validateSeedDataset(dataset: SeedDataset): SeedValidationReport 
     if (!prod.id || prod.id.trim().length === 0) {
       issues.push({ severity: "error", entity: "product", message: "Product ID is empty." });
     }
+    if (!/^prod-\d{4,}$/.test(prod.id)) {
+      issues.push({ severity: "error", entity: "product", id: prod.id, field: "id", message: "Product ID must use the canonical prod-NNNN format." });
+    }
     if (seenProductIds.has(prod.id)) {
       duplicateProductIds.push(prod.id);
       issues.push({ severity: "error", entity: "product", id: prod.id, message: `Duplicate product ID: ${prod.id}` });
@@ -240,6 +257,18 @@ export function validateSeedDataset(dataset: SeedDataset): SeedValidationReport 
         message: `Invalid price: ${prod.price}. Must be a finite non-negative number.`,
       });
     }
+    if (prod.currency !== undefined && !/^[A-Z]{3}$/.test(prod.currency)) {
+      issues.push({ severity: "error", entity: "product", id: prod.id, field: "currency", message: "Currency must be a three-letter uppercase code." });
+    }
+    if (prod.availability !== undefined && !["in-stock", "out-of-stock", "unknown"].includes(prod.availability)) {
+      issues.push({ severity: "error", entity: "product", id: prod.id, field: "availability", message: "Availability is invalid." });
+    }
+    if (prod.imageUrl !== undefined && !isHttpUrl(prod.imageUrl)) {
+      issues.push({ severity: "error", entity: "product", id: prod.id, field: "imageUrl", message: "Image URL must be an http(s) URL." });
+    }
+    if (prod.productUrl !== undefined && !isHttpUrl(prod.productUrl)) {
+      issues.push({ severity: "error", entity: "product", id: prod.id, field: "productUrl", message: "Product URL must be an http(s) URL." });
+    }
 
     if (typeof prod.stock !== "number" || !Number.isInteger(prod.stock) || prod.stock < 0) {
       issues.push({
@@ -249,6 +278,15 @@ export function validateSeedDataset(dataset: SeedDataset): SeedValidationReport 
         field: "stock",
         message: `Invalid stock: ${prod.stock}. Must be a non-negative integer.`,
       });
+    }
+
+    function isHttpUrl(value: string): boolean {
+      try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch {
+        return false;
+      }
     }
 
     if (typeof prod.version !== "number" || !Number.isInteger(prod.version) || prod.version <= 0) {

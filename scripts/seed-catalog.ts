@@ -53,14 +53,21 @@ async function main(): Promise<void> {
 
         for (const prod of dataset.products) {
           await conn.query(
-            `INSERT INTO products (id, name, description, category_id, price, stock, version, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `INSERT INTO products (id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE
                name = VALUES(name),
                description = VALUES(description),
                category_id = VALUES(category_id),
                price = VALUES(price),
+               currency = VALUES(currency),
                stock = VALUES(stock),
+               availability = VALUES(availability),
+               brand = VALUES(brand),
+               attributes = VALUES(attributes),
+               image_url = VALUES(image_url),
+               product_url = VALUES(product_url),
+               data_source = VALUES(data_source),
                version = VALUES(version),
                updated_at = VALUES(updated_at)`,
             [
@@ -69,7 +76,14 @@ async function main(): Promise<void> {
               prod.description,
               prod.categoryId,
               prod.price,
+              prod.currency ?? "USD",
               prod.stock,
+              prod.availability ?? "unknown",
+              prod.brand ?? null,
+              prod.attributes ? JSON.stringify(prod.attributes) : null,
+              prod.imageUrl ?? null,
+              prod.productUrl ?? null,
+              prod.dataSource ?? "demo",
               prod.version,
               new Date(prod.updatedAt),
             ],
@@ -85,7 +99,8 @@ async function main(): Promise<void> {
         conn.release();
       }
     } catch (err) {
-      console.warn("Could not seed live MySQL database (offline or misconfigured):", err instanceof Error ? err.message : err);
+      console.error("Could not seed live MySQL database:", err instanceof Error ? err.message : String(err));
+      process.exitCode = 1;
     } finally {
       await closeDatabasePool();
     }

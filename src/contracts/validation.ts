@@ -136,13 +136,20 @@ function parseProduct(input: unknown, path: string, issues: ContractIssue[]): Pr
     issues.push({ path, message: "Expected an object" });
     return undefined;
   }
-  validateObjectKeys(input, ["id", "name", "description", "categoryId", "price", "stock", "version", "updatedAt"], path, issues);
+  validateObjectKeys(input, ["id", "name", "description", "categoryId", "price", "currency", "stock", "availability", "brand", "attributes", "imageUrl", "productUrl", "dataSource", "version", "updatedAt"], path, issues);
   const id = requiredString(input, "id", path, issues);
   const name = requiredString(input, "name", path, issues);
   const description = requiredString(input, "description", path, issues);
   const categoryId = requiredString(input, "categoryId", path, issues);
   const updatedAt = requiredString(input, "updatedAt", path, issues);
   const price = optionalNumber(input, "price", path, issues);
+  const currency = input.currency;
+  const availability = input.availability;
+  const brand = input.brand;
+  const attributes = input.attributes;
+  const imageUrl = input.imageUrl;
+  const productUrl = input.productUrl;
+  const dataSource = input.dataSource;
   const stock = input.stock;
   const version = input.version;
   if (price === undefined) issues.push({ path: `${path}.price`, message: "Expected a finite number" });
@@ -153,11 +160,27 @@ function parseProduct(input: unknown, path: string, issues: ContractIssue[]): Pr
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1) {
     issues.push({ path: `${path}.version`, message: "Expected a positive integer" });
   }
+  if (currency !== undefined && (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency))) issues.push({ path: `${path}.currency`, message: "Expected a three-letter uppercase currency code" });
+  if (availability !== undefined && (availability !== "in-stock" && availability !== "out-of-stock" && availability !== "unknown")) issues.push({ path: `${path}.availability`, message: "Expected in-stock, out-of-stock, or unknown" });
+  if (brand !== undefined && (typeof brand !== "string" || brand.trim() === "")) issues.push({ path: `${path}.brand`, message: "Expected a non-empty string" });
+  if (attributes !== undefined && (!isRecord(attributes) || Object.values(attributes).some((value) => typeof value !== "string"))) issues.push({ path: `${path}.attributes`, message: "Expected a string-valued object" });
+  for (const [key, value] of [["imageUrl", imageUrl], ["productUrl", productUrl]] as const) {
+    if (value !== undefined && (typeof value !== "string" || !/^https?:\/\//i.test(value))) issues.push({ path: `${path}.${key}`, message: "Expected an http(s) URL" });
+  }
+  if (dataSource !== undefined && dataSource !== "demo" && dataSource !== "catalog") issues.push({ path: `${path}.dataSource`, message: "Expected demo or catalog" });
   if (updatedAt !== undefined && Number.isNaN(Date.parse(updatedAt))) {
     issues.push({ path: `${path}.updatedAt`, message: "Expected an ISO-parseable timestamp" });
   }
   if (id === undefined || name === undefined || description === undefined || categoryId === undefined || updatedAt === undefined || price === undefined || typeof stock !== "number" || typeof version !== "number") return undefined;
-  return { id, name, description, categoryId, price, stock, version, updatedAt };
+  const product: Product = { id: id!, name: name!, description: description!, categoryId: categoryId!, price: price!, stock: stock as number, version: version as number, updatedAt };
+  if (typeof currency === "string") product.currency = currency;
+  if (availability === "in-stock" || availability === "out-of-stock" || availability === "unknown") product.availability = availability;
+  if (typeof brand === "string") product.brand = brand;
+  if (isRecord(attributes) && Object.values(attributes).every((value) => typeof value === "string")) product.attributes = attributes as Record<string, string>;
+  if (typeof imageUrl === "string") product.imageUrl = imageUrl;
+  if (typeof productUrl === "string") product.productUrl = productUrl;
+  if (dataSource === "demo" || dataSource === "catalog") product.dataSource = dataSource;
+  return product;
 }
 
 export function parseProductInput(input: unknown): Product {
