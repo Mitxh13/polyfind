@@ -138,7 +138,7 @@ test("MySQL schema and migration behavior on a clean database", { skip: !hasData
           ["prod-neg-price", "Negative Price", "Desc", "cat-test", -5.0, 5, 1],
         );
       },
-      /check constraint.*failed/i,
+      /check constraint.*(failed|violated)/i,
       "Expected CHECK constraint failure for negative price",
     );
 
@@ -150,7 +150,7 @@ test("MySQL schema and migration behavior on a clean database", { skip: !hasData
           ["prod-neg-stock", "Negative Stock", "Desc", "cat-test", 15.0, -2, 1],
         );
       },
-      /check constraint.*failed/i,
+      /check constraint.*(failed|violated)/i,
       "Expected CHECK constraint failure for negative stock",
     );
   } finally {

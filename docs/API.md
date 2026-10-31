@@ -117,3 +117,16 @@ Errors use:
 
 The server does not expose stack traces, credentials, environment variables,
 or derived-store price/stock values.
+
+### `GET /api/ready`
+
+Readiness is `200` only when the configured catalog dependency is available;
+otherwise it returns `503`. This endpoint is suitable for a hosting health
+check. The response includes only `status` and the configured catalog mode.
+
+### Runtime modes
+
+Set `CATALOG_MODE=demo` for the deterministic seed-42 in-memory catalogue.
+Demo mode is explicitly labeled by the API and UI. Set `CATALOG_MODE=live` for
+MySQL-backed operation. Live mode requires a reachable `DATABASE_URL` and
+never falls back to demo data when MySQL is unavailable.

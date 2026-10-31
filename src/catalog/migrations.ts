@@ -75,10 +75,18 @@ export async function runMigrations(
     try {
       await connection.beginTransaction();
 
+      // MySQL 8.0 compatibility: ADD COLUMN IF NOT EXISTS is a MariaDB extension
+      // not supported in MySQL 8.0. The migration runner provides idempotency via
+      // schema_migrations tracking, so stripping IF NOT EXISTS here is safe.
+      const executableSql = sqlContent.replace(
+        /\bADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/gi,
+        "ADD COLUMN",
+      );
+
       // Execute statements in the migration file
       // mysql2 with multipleStatements: true can execute multi-statement SQL strings
-      if (sqlContent.trim().length > 0) {
-        await connection.query(sqlContent);
+      if (executableSql.trim().length > 0) {
+        await connection.query(executableSql);
       }
 
       await connection.query(

@@ -88,17 +88,46 @@ production deployment. It includes a local deterministic demo API via
 `npm run api`; do not treat
 the placeholder values in `.env.example` as working credentials.
 
-### Local API
+### Interactive Next.js Frontend & Unified Development
 
-Start the offline demo API with:
+PolyFind provides a full Next.js + TypeScript browser search interface connected to the backend retrieval and freshness pipeline:
 
-```powershell
-npm run api
-```
+- **Start development (Web + API together)**:
+  ```bash
+  npm run dev
+  ```
+  Starts the API server at `http://127.0.0.1:3001` and the Next.js development server at [http://localhost:3000](http://localhost:3000).
 
-See [`docs/API.md`](docs/API.md) for the endpoint contract and examples. The
-default catalogue is deterministic demo data. MySQL remains the authoritative
-source when a MySQL-backed catalog is explicitly configured.
+- **Production build & start**:
+  ```bash
+  npm run build
+  npm run start
+  ```
+
+- **Standalone API server**:
+  ```bash
+  npm run api
+  ```
+  Runs the API on `http://127.0.0.1:3001` (or configured `$PORT` / `$API_PORT`).
+
+### Local URLs
+
+| Surface | URL | Description |
+|---|---|---|
+| **Web Frontend** | `http://localhost:3000` | Browser interface: search bar, category navigation, price/stock filters, sorting, product detail modals, and dedicated product pages |
+| **API Health** | `http://127.0.0.1:3001/api/health` | Health status and optional dependency diagnostic states |
+| **API Products** | `http://127.0.0.1:3001/api/products` | Authoritative catalogue products with bounded pagination, filters, and sorting |
+| **API Search** | `http://127.0.0.1:3001/api/search` | Search pipeline endpoint supporting both `GET` and `POST` with freshness verification |
+
+*(Note: In the browser, Next.js rewrites `/api/*` requests directly to the backend API server).*
+
+### API Endpoints Summary
+
+- `GET /api/health`: Health status and dependency availability.
+- `GET /api/products`: Lists products with pagination (`page`, `limit`), filters (`category`/`categoryId`, `minPrice`, `maxPrice`, `inStock`), and sorting (`relevance`, `name`, `price`, `updatedAt`).
+- `GET /api/products/:id`: Retrieves canonical product facts. Returns 404 for unknown IDs.
+- `POST /api/search`: Evaluates query constraints, executes retrieval planning, deduplicates candidates with deterministic tie-breaking, validates freshness against the authoritative store, and returns ranked products with timing metrics.
+- `GET /api/search?q=...`: Compatibility search query endpoint.
 
 ## Current Project direction
 **PolyFind: Freshness-Constrained Adaptive Retrieval Across Heterogeneous Databases**
@@ -177,3 +206,37 @@ All team members and agents follow the rules in `AGENTS.md` and the parallel exe
 - `docs/slices/` — individually executable, testable tasks
 - `docs/contracts.md` — S1-04 typed boundaries, validation, interfaces, and examples
 - `AGENTS.md` — coding-agent operating rules
+
+## Public deployment
+
+The supported deployment shape is one Node.js service running the Next.js
+frontend and API process, with managed MySQL as the authoritative catalogue.
+The frontend rewrite keeps database credentials server-side. Do not deploy
+with `CATALOG_MODE=demo` when presenting production data.
+
+Production requires `NODE_ENV=production`, `CATALOG_MODE=live`, a reachable
+`DATABASE_URL`, `APP_URL`, `PORT`, `API_PORT`, `CORS_ORIGIN`, and a bounded
+`RATE_LIMIT_MAX`. Live startup fails instead of falling back to demo data.
+
+```powershell
+npm ci
+npm run migrate
+npm run seed -- --seed=42 --count=50
+npm run check:production
+npm run start
+```
+
+The [Dockerfile](Dockerfile) and
+[docker-compose.yml](docker-compose.yml) provide a repeatable local
+production-like setup with a persistent MySQL volume. Compose credentials are
+placeholders only; replace them through an uncommitted environment override.
+Semantic/vector retrieval is not claimed as production-persistent until a
+managed provider is configured and verified.
+
+For hosting, connect this repository to a managed Node/Docker service, store
+the variables above as platform secrets, run migrations and the deterministic
+seed once, and configure `GET /api/ready` as the health check. After deployment
+verify `/api/health`, `/api/ready`, and a `POST /api/search` request through
+the public HTTPS URL; confirm the response reports `mode: "live"` and that
+price and stock match MySQL. No public deployment or URL has been performed
+or verified from this repository.

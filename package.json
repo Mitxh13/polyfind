@@ -5,8 +5,13 @@
   "description": "PolyFind contract and architecture baseline",
   "type": "module",
   "scripts": {
-    "test": "tsx --test",
+    "dev": "tsx scripts/dev.ts",
+    "build": "next build web",
+    "start": "tsx scripts/start.ts",
+    "test": "tsx --test --test-concurrency=1",
+    "test:research": "npm test",
     "typecheck": "tsc --noEmit",
+    "check:production": "npm run typecheck && npm run build",
     "migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed-catalog.ts",
     "api": "tsx scripts/api.ts"
@@ -17,6 +22,11 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "mysql2": "^3.24.6"
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "mysql2": "^3.24.6",
+    "next": "16.4.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

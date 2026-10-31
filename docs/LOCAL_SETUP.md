@@ -100,3 +100,10 @@ npm install
 npm test
 npm run typecheck
 ```
+
+For a deterministic browser demo, set `CATALOG_MODE=demo` and run
+`npm run dev`. This mode is explicit and uses the seed-42 in-memory catalogue.
+For a live local run, set `CATALOG_MODE=live`, configure a reachable
+`DATABASE_URL`, run `npm run migrate` and `npm run seed -- --seed=42 --count=50`,
+then use `npm run start`. Live startup fails instead of substituting demo data
+when MySQL is unavailable.

@@ -27,6 +27,17 @@ async function get(baseUrl: string, path: string): Promise<Response> {
   return fetch(`${baseUrl}${path}`);
 }
 
+async function post(baseUrl: string, path: string, body: unknown): Promise<Response> {
+  return fetch(`${baseUrl}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+}
+
 test("health reports application health and optional dependency status separately", async () => {
   await withApi(async (baseUrl) => {
     const response = await get(baseUrl, "/api/health");
@@ -38,7 +49,18 @@ test("health reports application health and optional dependency status separatel
       dependencies: { catalog: "available", redis: "not-configured" },
     });
   });
-});
+
+  });
+
+  test("readiness and security headers expose safe deployment checks", async () => {
+    await withApi(async (baseUrl) => {
+      const response = await get(baseUrl, "/api/ready");
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { status: "ready", mode: "live" });
+      assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+      assert.equal(response.headers.get("x-frame-options"), "DENY");
+    });
+  });
 
 test("products supports bounded pagination, filters, and explicit sorting", async () => {
   await withApi(async (baseUrl) => {
@@ -127,6 +149,59 @@ test("search live client uses the GET API contract", async () => {
   } finally {
     await api.stop();
   }
+});
+
+test("POST /api/search accepts validated request payload, filters, and returns ranked results", async () => {
+  await withApi(async (baseUrl) => {
+    const response = await post(baseUrl, "/api/search", {
+      query: "backpack",
+      filters: { categoryId: "cat-outdoors", inStock: true },
+      freshnessMode: "strict",
+      page: 1,
+      limit: 5,
+    });
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as {
+      items: Array<{ product: { id: string; categoryId: string; stock: number }; score: number }>;
+      freshness: { mode: string; status: string };
+      total: number;
+    };
+    assert.ok(body.total > 0);
+    assert.ok(body.items.length <= 5);
+    for (const item of body.items) {
+      assert.equal(item.product.categoryId, "cat-outdoors");
+      assert.ok(item.product.stock > 0);
+      assert.ok(item.score > 0);
+    }
+    assert.equal(body.freshness.mode, "strict");
+    assert.equal(body.freshness.status, "verified");
+  });
+});
+
+test("POST /api/search rejects empty query, malformed JSON, and disallows POST on GET-only routes", async () => {
+  await withApi(async (baseUrl) => {
+    // Empty query
+    const emptyRes = await post(baseUrl, "/api/search", { query: "" });
+    assert.equal(emptyRes.status, 400);
+
+    // Malformed JSON string
+    const malformedRes = await fetch(`${baseUrl}/api/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{ not valid json",
+    });
+    assert.equal(malformedRes.status, 400);
+
+    // Disallowed POST on products endpoint
+    const postProducts = await post(baseUrl, "/api/products", { name: "Test" });
+    assert.equal(postProducts.status, 405);
+
+    // OPTIONS preflight check
+    const optionsRes = await fetch(`${baseUrl}/api/search`, { method: "OPTIONS" });
+    assert.equal(optionsRes.status, 204);
+    assert.equal(optionsRes.headers.get("access-control-allow-origin"), "*");
+    assert.ok(optionsRes.headers.get("access-control-allow-methods")?.includes("POST"));
+  });
 });
 
 test("catalogue failures return a safe server error without internal details", async () => {

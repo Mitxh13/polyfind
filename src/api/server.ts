@@ -12,6 +12,9 @@ export interface ApiServerOptions {
   catalog: CatalogReader;
   search?: SearchService;
   dependencyStatus?: Record<string, "available" | "not-configured" | "unavailable">;
+  mode?: "demo" | "live";
+  corsOrigin?: string;
+  rateLimit?: { windowMs: number; maxRequests: number };
 }
 
 export interface ApiServer {
@@ -25,7 +28,18 @@ function sendJson(response: ServerResponse, status: number, body: unknown): void
   response.statusCode = status;
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Content-Length", Buffer.byteLength(payload));
+  response.setHeader("Access-Control-Allow-Origin", response.getHeader("Access-Control-Allow-Origin") ?? "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
   response.end(payload);
+}
+
+function setSecurityHeaders(response: ServerResponse, origin: string): void {
+  response.setHeader("Access-Control-Allow-Origin", origin);
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("X-Frame-Options", "DENY");
+  response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
 }
 
 function errorResponse(error: unknown): { status: number; body: object } {
@@ -72,17 +86,123 @@ function parseFilters(url: URL): { q: string | undefined; filters: ProductFilter
   return { q, filters: { ...(categoryId === undefined ? {} : { categoryId }), ...(minPrice === undefined ? {} : { minPrice }), ...(maxPrice === undefined ? {} : { maxPrice }), ...(inStock === undefined ? {} : { inStock }) }, page, limit, sort };
 }
 
-async function handle(request: IncomingMessage, response: ServerResponse, options: ApiServerOptions): Promise<void> {
-  if (request.method !== "GET") {
-    sendJson(response, 405, { error: { code: "METHOD_NOT_ALLOWED", message: "Only GET requests are supported." } });
+async function readJsonBody(request: IncomingMessage, maxBytes = 1_048_576): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    let bytes = 0;
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk: Buffer) => {
+      bytes += chunk.length;
+      if (bytes > maxBytes) {
+        reject(new CatalogValidationError("Request payload exceeded maximum size limit."));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on("end", () => {
+      if (chunks.length === 0) {
+        resolve({});
+        return;
+      }
+      try {
+        const text = Buffer.concat(chunks).toString("utf-8");
+        resolve(JSON.parse(text));
+      } catch {
+        reject(new CatalogValidationError("Invalid JSON in request payload."));
+      }
+    });
+    request.on("error", (err) => reject(err));
+  });
+}
+
+async function handle(
+  request: IncomingMessage,
+  response: ServerResponse,
+  options: ApiServerOptions,
+  requestCounts: Map<string, { startedAt: number; count: number }>,
+): Promise<void> {
+  const origin = options.corsOrigin ?? "*";
+  setSecurityHeaders(response, origin);
+  const clientKey = request.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim()
+    ?? request.socket.remoteAddress
+    ?? "unknown";
+  const rateLimit = options.rateLimit;
+  if (rateLimit) {
+    const now = Date.now();
+    const current = requestCounts.get(clientKey);
+    if (!current || now - current.startedAt >= rateLimit.windowMs) {
+      requestCounts.set(clientKey, { startedAt: now, count: 1 });
+    } else {
+      current.count += 1;
+      if (current.count > rateLimit.maxRequests) {
+        sendJson(response, 429, { error: { code: "RATE_LIMITED", message: "Too many requests. Please try again later." } });
+        return;
+      }
+    }
+  }
+  if (request.method === "OPTIONS") {
+    response.statusCode = 204;
+    response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+    response.end();
     return;
   }
+
+  if (request.method !== "GET" && request.method !== "POST") {
+    sendJson(response, 405, { error: { code: "METHOD_NOT_ALLOWED", message: "Only GET and POST requests are supported." } });
+    return;
+  }
+
   const url = new URL(request.url ?? "/", "http://localhost");
+
   try {
-    if (url.pathname === "/api/health") {
-      sendJson(response, 200, { ...healthCheck(), dependencies: options.dependencyStatus ?? {} });
+    // POST endpoints
+    if (request.method === "POST") {
+      if (url.pathname === "/api/search") {
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          throw new CatalogValidationError("Request body must be a JSON object.");
+        }
+        const body = rawBody as Record<string, unknown>;
+        const queryVal = body["query"] ?? body["q"];
+        if (typeof queryVal !== "string" || !queryVal.trim()) {
+          throw new CatalogValidationError("query (or q) is required and must be non-empty.");
+        }
+        const requestPayload = {
+          query: queryVal.trim(),
+          filters: body["filters"] ?? {},
+          page: body["page"] ?? 1,
+          limit: body["limit"] ?? 20,
+          freshnessMode: body["freshnessMode"] ?? "strict",
+        };
+        const searchRequest = parseSearchRequest(requestPayload);
+        const result = await (options.search ?? new SearchService({ catalog: options.catalog })).search(searchRequest);
+        sendJson(response, 200, result);
+        return;
+      }
+
+      sendJson(response, 405, { error: { code: "METHOD_NOT_ALLOWED", message: "Only GET requests are supported for this endpoint." } });
       return;
     }
+
+    // GET endpoints
+    if (url.pathname === "/api/health") {
+      sendJson(response, 200, {
+        ...healthCheck(),
+        dependencies: options.dependencyStatus ?? {},
+        ...(options.mode === undefined ? {} : { mode: options.mode }),
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/ready") {
+      const catalogReady = options.dependencyStatus?.catalog === "available";
+      sendJson(response, catalogReady ? 200 : 503, {
+        status: catalogReady ? "ready" : "not-ready",
+        mode: options.mode ?? "live",
+      });
+      return;
+    }
+
     if (url.pathname === "/api/products") {
       const parsed = parseFilters(url);
       const all = "listAll" in options.catalog
@@ -96,11 +216,27 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
         (parsed.filters.maxPrice === undefined || product.price <= parsed.filters.maxPrice) &&
         (parsed.filters.inStock === undefined || (parsed.filters.inStock ? product.stock > 0 : product.stock === 0)),
       );
-      const sorted = [...filtered].sort((a, b) => parsed.sort === "name" ? a.name.localeCompare(b.name) : parsed.sort === "price" ? a.price - b.price || a.id.localeCompare(b.id) : parsed.sort === "updatedAt" ? b.updatedAt.localeCompare(a.updatedAt) : a.id.localeCompare(b.id));
+      const sorted = [...filtered].sort((a, b) =>
+        parsed.sort === "name"
+          ? a.name.localeCompare(b.name)
+          : parsed.sort === "price"
+            ? a.price - b.price || a.id.localeCompare(b.id)
+            : parsed.sort === "updatedAt"
+              ? b.updatedAt.localeCompare(a.updatedAt)
+              : a.id.localeCompare(b.id),
+      );
       const offset = (parsed.page - 1) * parsed.limit;
-      sendJson(response, 200, { items: sorted.slice(offset, offset + parsed.limit), page: parsed.page, limit: parsed.limit, total: sorted.length, totalPages: Math.max(1, Math.ceil(sorted.length / parsed.limit)), sort: parsed.sort });
+      sendJson(response, 200, {
+        items: sorted.slice(offset, offset + parsed.limit),
+        page: parsed.page,
+        limit: parsed.limit,
+        total: sorted.length,
+        totalPages: Math.max(1, Math.ceil(sorted.length / parsed.limit)),
+        sort: parsed.sort,
+      });
       return;
     }
+
     const productMatch = /^\/api\/products\/([^/]+)$/.exec(url.pathname);
     if (productMatch) {
       const product = await options.catalog.getProduct(decodeURIComponent(productMatch[1]!));
@@ -108,15 +244,23 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
       sendJson(response, 200, { item: product });
       return;
     }
+
     if (url.pathname === "/api/search") {
       const parsed = parseFilters(url);
       if (!parsed.q?.trim()) throw new CatalogValidationError("q is required and must be non-empty.");
       const freshnessMode = url.searchParams.get("freshnessMode") ?? "strict";
-      const request = parseSearchRequest({ query: parsed.q, filters: parsed.filters, page: parsed.page, limit: parsed.limit, freshnessMode });
+      const request = parseSearchRequest({
+        query: parsed.q,
+        filters: parsed.filters,
+        page: parsed.page,
+        limit: parsed.limit,
+        freshnessMode,
+      });
       const result = await (options.search ?? new SearchService({ catalog: options.catalog })).search(request);
       sendJson(response, 200, result);
       return;
     }
+
     sendJson(response, 404, { error: { code: "NOT_FOUND", message: "The requested endpoint was not found." } });
   } catch (error) {
     const formatted = errorResponse(error);
@@ -125,8 +269,9 @@ async function handle(request: IncomingMessage, response: ServerResponse, option
 }
 
 export function createApiServer(options: ApiServerOptions): ApiServer {
+  const requestCounts = new Map<string, { startedAt: number; count: number }>();
   const server = createServer((request, response) => {
-    void handle(request, response, options);
+    void handle(request, response, options, requestCounts);
   });
   return {
     server,

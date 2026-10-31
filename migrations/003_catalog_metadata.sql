@@ -1,5 +1,7 @@
 -- Migration 003: Optional catalogue metadata and explicit source provenance.
 -- Existing rows receive safe unknown/null values; no retail facts are fabricated.
+-- ADD COLUMN IF NOT EXISTS is a MariaDB extension; the migration runner strips it
+-- for MySQL 8.0 compatibility while preserving idempotency via schema_migrations tracking.
 
 ALTER TABLE products
   ADD COLUMN IF NOT EXISTS currency CHAR(3) NOT NULL DEFAULT 'USD',
