@@ -233,10 +233,36 @@ placeholders only; replace them through an uncommitted environment override.
 Semantic/vector retrieval is not claimed as production-persistent until a
 managed provider is configured and verified.
 
-For hosting, connect this repository to a managed Node/Docker service, store
-the variables above as platform secrets, run migrations and the deterministic
-seed once, and configure `GET /api/ready` as the health check. After deployment
-verify `/api/health`, `/api/ready`, and a `POST /api/search` request through
-the public HTTPS URL; confirm the response reports `mode: "live"` and that
-price and stock match MySQL. No public deployment or URL has been performed
-or verified from this repository.
+## Live Public Deployment
+
+PolyFind is publicly deployed and accessible at:
+- **Public URL:** [https://polyfind.onrender.com](https://polyfind.onrender.com)
+- **Status:** Active & Verified
+- **Hosting:** Render Web Service (Docker container)
+- **Public Endpoints Verified:**
+  - GET / � Interactive Next.js 16 Web UI (Catalog, Search, Structured Filters, Details Modal)
+  - GET /api/health � Returns application health and dependency statuses
+  - GET /api/products � Product catalog listing with pagination and filters
+  - GET /api/search?q=lantern � Ranked search with freshness validation and strategy metadata
+
+### Execution Modes and Store Architecture
+
+PolyFind supports three operational modes:
+
+| Mode | Command / Variable | Catalog Data Store | Derived Stores (Redis, Graph, Vector) | Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **Demo Mode** | `CATALOG_MODE=demo` | In-memory deterministic dataset (50 items) | In-memory adapters | Zero-dependency deployment & public demo |
+| **Local Real-DB Mode** | `CATALOG_MODE=live` | Local native MySQL 8.0 (authoritative transactional facts) | Running in Docker Compose (Redis 8, Neo4j 5, Qdrant) | Local development, benchmarking & integration testing |
+| **Production Mode** | `CATALOG_MODE=live` + cloud `DATABASE_URL` | Cloud-managed MySQL | Configured external managed services | Enterprise live deployment |
+
+### Adapter Integration Reality
+- **MySQL:** **Real Integration** � Fully integrated using `mysql2/promise` with transactions, composite indexes, foreign key constraints, and migrations (`migrations/001..003`).
+- **Redis:** In-memory TTL Map adapter (tested against Docker Redis container fallback).
+- **Neo4j:** In-memory graph relation model (schema defined and Docker Neo4j 5 community verified).
+- **Vector Store:** In-memory columnar spike vector store with deterministic 384-dimensional unit embeddings. Docker Qdrant service is running and verified for future external binding.
+
+### Deployment Procedure
+The production image is built automatically from GitHub via the root multi-stage [Dockerfile](Dockerfile):
+1. **Build Stage:** `node:22-bookworm-slim`, compiles Next.js pages and TypeScript contracts into optimized standalone bundles.
+2. **Runtime Stage:** Minimal Node 22 slim image running `npm run start` (`scripts/start.ts`), which concurrently hosts the API daemon on port 3001 and Next.js frontend on port 3000.
+3. **Environment:** Secrets and ports configured securely via the hosting provider's environment variables. All secrets remain excluded from git.
