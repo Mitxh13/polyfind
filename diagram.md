@@ -1,4 +1,33 @@
+> **Historical design reference — not the current executable schema.** This document contains early conceptual examples and names that no longer match the implementation in places. For current behavior, use [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/RELATIONAL_SCHEMA_PHASE4.md](docs/RELATIONAL_SCHEMA_PHASE4.md), [docs/GRAPH_SCHEMA.md](docs/GRAPH_SCHEMA.md), [docs/REDIS_PHASE5.md](docs/REDIS_PHASE5.md), and [docs/LANCEDB_PHASE7.md](docs/LANCEDB_PHASE7.md). Do not copy legacy schema statements into migrations or describe planned objects here as implemented.
+
 # PolyFind — Database Diagrams & Tables
+
+## 0. Executable Phase 4 relational foundation
+
+The following diagram reflects the tables implemented by migrations `001` to
+`004`. Search logging, deletion audit, triggers, and views shown in later
+historical documentation are planned unless they are present in `migrations/`.
+
+```mermaid
+erDiagram
+    categories ||--o{ categories : parent
+    categories ||--o{ products : classifies
+    brands o|--o{ products : brands
+    products ||--o{ product_variants : has
+    products ||--o{ offers : lists
+    product_variants o|--o{ offers : specializes
+    sellers ||--o{ offers : sells
+    offers ||--o{ offer_history : records
+    users ||--o{ user_roles : receives
+    roles ||--o{ user_roles : grants
+    users ||--o{ sessions : owns
+    users o|--o{ audit_logs : acts
+    outbox_events ||--o{ outbox_deliveries : targets
+```
+
+See [docs/RELATIONAL_SCHEMA_PHASE4.md](docs/RELATIONAL_SCHEMA_PHASE4.md) for
+the executable table list, constraints, indexes, compatibility rules, and
+deferred functionality.
 
 ---
 

@@ -44,9 +44,32 @@ export {
 } from "./vector-adapter.js";
 
 export {
+  LanceDbVectorStore,
+  createLanceDbStoreFromEnvironment,
+  type LanceDbStatus,
+  type LanceDbStoreOptions,
+} from "./lancedb-store.js";
+
+export {
+  OpenAiCompatibleEmbeddingProvider,
+  createEmbeddingProviderFromEnvironment,
+  type OpenAiCompatibleEmbeddingOptions,
+} from "./embedding-provider.js";
+
+export {
+  VectorRuntime,
+  createVectorRuntimeFromEnvironment,
+  type EmbeddingConfigurationStatus,
+  type VectorRuntimeHealth,
+  type VectorRuntimeOptions,
+} from "./vector-lifecycle.js";
+
+export {
   GraphRetrievalAdapter,
   GraphCandidateRetrievalAdapter,
   Neo4jGraphRetrievalAdapter,
   createGraphRetrievalAdapter,
   type GraphCandidateStorage,
+  Neo4jGraphRetrievalProvider,
+  type Neo4jCandidateReader,
 } from "./graph-adapter.js";

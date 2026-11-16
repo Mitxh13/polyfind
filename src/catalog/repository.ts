@@ -1,17 +1,20 @@
-import type { Pool, RowDataPacket } from "mysql2/promise";
-import type { Category, Product, ProductFilters } from "../contracts/types.js";
+import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+import type { CatalogReader, Category, Product, ProductFilters } from "../contracts/types.js";
 import {
   CatalogValidationError,
   NotFoundError,
   SafeDatabaseError,
   VersionConflictError,
 } from "./errors.js";
+import type { CatalogCache } from "../cache/catalog-cache.js";
+import { createOutboxEvent, createProductOutboxEvent, writeOutboxRecord } from "../sync/outbox.js";
 
 export interface ListProductsOptions {
   q?: string;
   filters?: ProductFilters;
   page?: number;
   limit?: number;
+  sort?: "relevance" | "name" | "price" | "updatedAt";
 }
 
 export interface PaginatedProducts {
@@ -28,10 +31,13 @@ export interface CreateProductInput {
   categoryId: string;
   price: number;
   stock: number;
+  currency?: string;
   version?: number;
+  actorUserId?: string;
 }
 
 export interface UpdateProductInput {
+  actorUserId?: string;
   name?: string;
   description?: string;
   categoryId?: string;
@@ -92,8 +98,31 @@ export function mapRowToProduct(row: ProductRow): Product {
   return product;
 }
 
+async function writeProductAudit(
+  connection: PoolConnection,
+  actorUserId: string | undefined,
+  action: string,
+  productId: string,
+  beforeData: unknown,
+  afterData: unknown,
+): Promise<void> {
+  await connection.query(
+    "INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, before_data, after_data) VALUES (?, ?, 'product', ?, ?, ?)",
+    [
+      actorUserId ?? null,
+      action,
+      productId,
+      beforeData === null ? null : JSON.stringify(beforeData),
+      afterData === null ? null : JSON.stringify(afterData),
+    ],
+  );
+}
+
 export class CatalogRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly cache?: CatalogCache,
+  ) {}
 
   async getCategory(id: string): Promise<Category | null> {
     try {
@@ -105,6 +134,7 @@ export class CatalogRepository {
       if (!row) {
         return null;
       }
+
       return {
         id: row.id,
         name: row.name,
@@ -122,17 +152,30 @@ export class CatalogRepository {
       throw new CatalogValidationError("Category name must be a non-empty string.");
     }
 
+    const connection = await this.pool.getConnection();
     try {
-      await this.pool.query(
-        "INSERT INTO categories (id, name, description) VALUES (?, ?, ?)",
-        [category.id.trim(), category.name.trim(), category.description ?? null],
+      await connection.beginTransaction();
+      await connection.query(
+        "INSERT INTO categories (id, name, description, slug) VALUES (?, ?, ?, ?)",
+        [category.id.trim(), category.name.trim(), category.description ?? null, category.id.trim()],
       );
+      await writeOutboxRecord(connection, createOutboxEvent(
+        "category",
+        category.id.trim(),
+        1,
+        "category.created",
+        { id: category.id.trim(), name: category.name.trim(), description: category.description ?? null },
+      ));
+      await connection.commit();
       return {
         id: category.id.trim(),
         name: category.name.trim(),
       };
     } catch (error) {
+      await connection.rollback();
       throw new SafeDatabaseError(error);
+    } finally {
+      connection.release();
     }
   }
 
@@ -151,6 +194,30 @@ export class CatalogRepository {
         return null;
       }
       return mapRowToProduct(row);
+    } catch (error) {
+      throw new SafeDatabaseError(error);
+    }
+  }
+
+  async getProducts(ids: readonly string[]): Promise<Product[]> {
+    const validIds = ids.filter((id) => typeof id === "string" && id.trim().length > 0);
+    if (validIds.length === 0) {
+      return [];
+    }
+
+    try {
+      const results: Product[] = [];
+      const chunkSize = 50;
+      for (let i = 0; i < validIds.length; i += chunkSize) {
+        const chunk = validIds.slice(i, i + chunkSize);
+        const placeholders = chunk.map(() => "?").join(",");
+        const [rows] = await this.pool.query<ProductRow[]>(
+          `SELECT id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, updated_at FROM products WHERE id IN (${placeholders})`,
+          chunk,
+        );
+        results.push(...rows.map(mapRowToProduct));
+      }
+      return results;
     } catch (error) {
       throw new SafeDatabaseError(error);
     }
@@ -210,11 +277,18 @@ export class CatalogRepository {
       const [countRows] = await this.pool.query<RowDataPacket[]>(countSql, params);
       const total = Number(countRows[0]?.["total"] ?? 0);
 
+      const orderBy = options.sort === "name"
+        ? "name ASC, id ASC"
+        : options.sort === "price"
+          ? "price ASC, id ASC"
+          : options.sort === "updatedAt"
+            ? "updated_at DESC, id ASC"
+            : "id ASC";
       const itemsSql = `
         SELECT id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, updated_at
         FROM products
         ${whereSql}
-        ORDER BY id ASC
+        ORDER BY ${orderBy}
         LIMIT ? OFFSET ?
       `;
       const [itemsRows] = await this.pool.query<ProductRow[]>(itemsSql, [...params, limit, offset]);
@@ -253,6 +327,9 @@ export class CatalogRepository {
     if (typeof input.stock !== "number" || input.stock < 0 || !Number.isInteger(input.stock)) {
       throw new CatalogValidationError("Product stock must be a non-negative integer.");
     }
+    if (input.currency !== undefined && !/^[A-Z]{3}$/.test(input.currency)) {
+      throw new CatalogValidationError("Product currency must be a three-letter uppercase ISO code.");
+    }
 
     const version = input.version !== undefined ? Math.max(1, input.version) : 1;
     const connection = await this.pool.getConnection();
@@ -261,15 +338,15 @@ export class CatalogRepository {
       await connection.beginTransaction();
 
       await connection.query(
-        `INSERT INTO products (id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO products (id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, slug)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           input.id.trim(),
           input.name.trim(),
           input.description.trim(),
           input.categoryId.trim(),
           input.price,
-          "USD",
+          input.currency ?? "USD",
           input.stock,
           input.stock > 0 ? "in-stock" : "out-of-stock",
           null,
@@ -278,6 +355,7 @@ export class CatalogRepository {
           null,
           "catalog",
           version,
+          input.id.trim(),
         ],
       );
 
@@ -292,13 +370,17 @@ export class CatalogRepository {
         [input.id.trim()],
       );
 
-      await connection.commit();
-
       const created = rows[0];
       if (!created) {
         throw new Error("Failed to retrieve created product.");
       }
-      return mapRowToProduct(created);
+      const product = mapRowToProduct(created);
+      await writeOutboxRecord(connection, createProductOutboxEvent(product, "created"));
+      await writeProductAudit(connection, input.actorUserId, "product.created", product.id, null, product);
+      await connection.commit();
+      await this.cache?.invalidateProduct(product.id);
+      await this.cache?.invalidateListings();
+      return product;
     } catch (error) {
       await connection.rollback();
       if (error instanceof CatalogValidationError) {
@@ -373,7 +455,7 @@ export class CatalogRepository {
 
       // Lock row to verify current existence and version
       const [existingRows] = await connection.query<ProductRow[]>(
-        "SELECT id, version FROM products WHERE id = ? FOR UPDATE",
+        "SELECT id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, updated_at FROM products WHERE id = ? FOR UPDATE",
         [id],
       );
 
@@ -382,6 +464,7 @@ export class CatalogRepository {
         throw new NotFoundError("Product", id);
       }
 
+      const beforeProduct = mapRowToProduct(existing);
       const currentVersion = Number(existing.version);
       if (expectedVersion !== undefined && currentVersion !== expectedVersion) {
         throw new VersionConflictError(id, expectedVersion, currentVersion);
@@ -414,8 +497,14 @@ export class CatalogRepository {
         [id, nextVersion, Number(updated.price), Number(updated.stock), "product_update"],
       );
 
+      const product = mapRowToProduct(updated);
+      await writeOutboxRecord(connection, createProductOutboxEvent(product, "updated"));
+      await writeProductAudit(connection, patch.actorUserId, "product.updated", product.id, beforeProduct, product);
+
       await connection.commit();
-      return mapRowToProduct(updated);
+      await this.cache?.invalidateProduct(product.id);
+      await this.cache?.invalidateListings();
+      return product;
     } catch (error) {
       await connection.rollback();
       if (error instanceof CatalogValidationError || error instanceof NotFoundError || error instanceof VersionConflictError) {
@@ -432,14 +521,49 @@ export class CatalogRepository {
       return false;
     }
 
+    const connection = await this.pool.getConnection();
     try {
-      const [result] = await this.pool.query<RowDataPacket[] & { affectedRows: number }>(
+      await connection.beginTransaction();
+      const [existingRows] = await connection.query<ProductRow[]>(
+        "SELECT id, name, description, category_id, price, currency, stock, availability, brand, attributes, image_url, product_url, data_source, version, updated_at FROM products WHERE id = ? FOR UPDATE",
+        [id],
+      );
+      const existing = existingRows[0];
+      if (!existing) {
+        await connection.rollback();
+        return false;
+      }
+      const product = mapRowToProduct(existing);
+      const [result] = await connection.query<RowDataPacket[] & { affectedRows: number }>(
         "DELETE FROM products WHERE id = ?",
         [id],
       );
-      return result.affectedRows > 0;
+      const deleted = result.affectedRows > 0;
+      if (deleted) {
+        await writeOutboxRecord(connection, createProductOutboxEvent(product, "deleted"));
+        await connection.commit();
+        await this.cache?.invalidateProduct(id);
+        await this.cache?.invalidateListings();
+      } else {
+        await connection.rollback();
+      }
+      return deleted;
     } catch (error) {
+      await connection.rollback();
       throw new SafeDatabaseError(error);
+    } finally {
+      connection.release();
     }
   }
+}
+
+export function asCatalogReader(repository: CatalogRepository): CatalogReader {
+  return {
+    getProduct: (productId) => repository.getProduct(productId),
+    getProducts: (productIds) => repository.getProducts(productIds),
+    listProducts: async (filters, page, limit) => {
+      const result = await repository.listProducts({ filters, page, limit });
+      return { items: result.items, total: result.total };
+    },
+  };
 }

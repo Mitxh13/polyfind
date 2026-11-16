@@ -72,6 +72,10 @@ export interface SearchResponse {
   strategy: string;
   timings: SearchTimings;
   freshness: FreshnessSummary;
+  /** Per-provider retrieval duration in milliseconds (canonical names: mysql, vector, graph). */
+  sourceTimings?: Record<string, number> | undefined;
+  /** True when this response was served from a validated cache entry. */
+  cacheHit?: boolean | undefined;
 }
 
 export interface RetrievalRequest {
@@ -110,6 +114,7 @@ export interface FreshnessVerifier {
 
 export interface CatalogReader {
   getProduct(productId: ProductId): Promise<Product | null>;
+  getProducts?(productIds: readonly ProductId[]): Promise<Product[]>;
   listProducts(
     filters: ProductFilters,
     page: number,

@@ -15,6 +15,8 @@ export interface VectorRecord {
     price: number;
     inStock: boolean;
     version: SourceVersion;
+    deleted?: boolean;
+    sourceSystem?: string;
   };
 }
 
@@ -22,6 +24,7 @@ export interface VectorQuery {
   vector: number[];
   filter?: {
     categoryId?: string;
+    minPrice?: number;
     maxPrice?: number;
     inStock?: boolean;
   };
@@ -123,6 +126,9 @@ export class InMemorySpikeVectorStore implements VectorStoreCandidate {
         if (query.filter.categoryId && record.metadata.categoryId !== query.filter.categoryId) {
           continue;
         }
+        if (query.filter.minPrice !== undefined && record.metadata.price < query.filter.minPrice) {
+          continue;
+        }
         if (query.filter.maxPrice !== undefined && record.metadata.price > query.filter.maxPrice) {
           continue;
         }
@@ -184,6 +190,9 @@ export class FileColumnarSpikeVectorStore implements VectorStoreCandidate {
     for (const record of this.columnarStorage.values()) {
       if (query.filter) {
         if (query.filter.categoryId && record.metadata.categoryId !== query.filter.categoryId) {
+          continue;
+        }
+        if (query.filter.minPrice !== undefined && record.metadata.price < query.filter.minPrice) {
           continue;
         }
         if (query.filter.maxPrice !== undefined && record.metadata.price > query.filter.maxPrice) {

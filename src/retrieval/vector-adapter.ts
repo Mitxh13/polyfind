@@ -101,10 +101,11 @@ export class VectorSemanticRetrievalAdapter implements RetrievalProvider {
 
   private buildFilter(
     filters?: ProductFilters,
-  ): { categoryId?: string; maxPrice?: number; inStock?: boolean } | undefined {
+  ): { categoryId?: string; minPrice?: number; maxPrice?: number; inStock?: boolean } | undefined {
     if (!filters) return undefined;
-    const filter: { categoryId?: string; maxPrice?: number; inStock?: boolean } = {};
+    const filter: { categoryId?: string; minPrice?: number; maxPrice?: number; inStock?: boolean } = {};
     if (filters.categoryId) filter.categoryId = filters.categoryId;
+    if (filters.minPrice !== undefined) filter.minPrice = filters.minPrice;
     if (filters.maxPrice !== undefined) filter.maxPrice = filters.maxPrice;
     if (filters.inStock !== undefined) filter.inStock = filters.inStock;
     return Object.keys(filter).length > 0 ? filter : undefined;

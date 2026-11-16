@@ -10,6 +10,7 @@ import {
   dropAllTables,
   getAvailableMigrationFiles,
   loadEnvironment,
+  parseDatabaseUrl,
   runMigrations,
 } from "../src/index.js";
 import type { RowDataPacket } from "mysql2/promise";
@@ -73,11 +74,11 @@ test("stale derived stores cannot overwrite authoritative MySQL facts (ADR-001)"
   assert.equal(fusedItem.product.version, 3, "Version must be authoritative MySQL version");
 });
 
-// Live MySQL integration tests if DATABASE_URL is set
-const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+// Destructive integration tests require an explicitly disposable database.
+const disposableDatabaseUrl = process.env.POLYFIND_TEST_DATABASE_URL;
 
-test("MySQL indexes, transactions, and foreign key integrity constraints", { skip: !hasDatabaseUrl }, async () => {
-  const pool = createDatabasePool();
+test("MySQL indexes, transactions, and foreign key integrity constraints", { skip: !disposableDatabaseUrl }, async () => {
+  const pool = createDatabasePool(parseDatabaseUrl(disposableDatabaseUrl));
   const repo = new CatalogRepository(pool);
 
   try {

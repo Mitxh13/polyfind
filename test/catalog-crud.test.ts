@@ -16,6 +16,7 @@ import {
   handleListProducts,
   handleUpdateProduct,
   loadEnvironment,
+  parseDatabaseUrl,
   runMigrations,
   sanitizeDatabaseErrorMessage,
 } from "../src/index.js";
@@ -91,11 +92,11 @@ test("handleCreateProduct returns 400 on malformed body", async () => {
   assert.equal(res.status, 400);
 });
 
-// Integration tests against MySQL database if DATABASE_URL is set
-const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+// Destructive integration tests require an explicitly disposable database.
+const disposableDatabaseUrl = process.env.POLYFIND_TEST_DATABASE_URL;
 
-test("Catalog CRUD operations and filtering integration against clean MySQL", { skip: !hasDatabaseUrl }, async () => {
-  const pool = createDatabasePool();
+test("Catalog CRUD operations and filtering integration against clean MySQL", { skip: !disposableDatabaseUrl }, async () => {
+  const pool = createDatabasePool(parseDatabaseUrl(disposableDatabaseUrl));
   const repo = new CatalogRepository(pool);
 
   try {

@@ -11,6 +11,7 @@ export type FreshnessValidationStatus = "fresh" | "stale" | "unverifiable";
 
 export interface FreshnessAuthority {
   getProduct(productId: ProductId): Promise<Product | null>;
+  getProducts?(productIds: readonly ProductId[]): Promise<Product[]>;
 }
 
 export interface FreshnessViolation {
@@ -59,6 +60,17 @@ function emptyTelemetry(): FreshnessTelemetry {
   };
 }
 
+function recordStale(telemetry: FreshnessTelemetry): void {
+  telemetry.staleCandidates += 1;
+  telemetry.freshnessViolations += 1;
+  telemetry.authoritativeFallbacks += 1;
+}
+
+function recordUnverifiable(telemetry: FreshnessTelemetry): void {
+  telemetry.unverifiableCandidates += 1;
+  telemetry.freshnessViolations += 1;
+}
+
 /**
  * Validates derived retrieval candidates against the authoritative catalog.
  *
@@ -88,14 +100,35 @@ export class FreshnessValidator {
   ): Promise<FreshnessValidationResult> {
     const mode = options.mode ?? "strict";
     const results: FreshnessValidatedCandidate[] = [];
+    const telemetry = emptyTelemetry();
+
+    // Bounded batch retrieval to prevent N individual serial database queries
+    const productIds = candidates.map((c) => c.productId);
+    const productMap = new Map<string, Product>();
+
+    if (this.authority.getProducts) {
+      try {
+        const batch = await this.authority.getProducts(productIds);
+        for (const p of batch) {
+          productMap.set(p.id, p);
+        }
+      } catch {
+        // Fall back to per-candidate resolution if batch retrieval encounters an issue
+      }
+    }
 
     for (const candidate of candidates) {
+      telemetry.checkedCandidates += 1;
       this.telemetry.checkedCandidates += 1;
-      let product: Product | null;
-      try {
-        product = await this.authority.getProduct(candidate.productId);
-      } catch {
-        product = null;
+      let product: Product | null = productMap.get(candidate.productId) ?? null;
+      if (!product) {
+        // Batch reads may omit deleted IDs or fail partially. Resolve each
+        // missing entry individually before classifying authority as unavailable.
+        try {
+          product = await this.authority.getProduct(candidate.productId);
+        } catch {
+          product = null;
+        }
       }
 
       if (product === null) {
@@ -107,7 +140,8 @@ export class FreshnessValidator {
         if (candidate.sourceVersion !== undefined) {
           violation.sourceVersion = candidate.sourceVersion;
         }
-        this.recordUnverifiable();
+        recordUnverifiable(telemetry);
+        recordUnverifiable(this.telemetry);
         results.push({
           candidate,
           status: "unverifiable",
@@ -127,7 +161,8 @@ export class FreshnessValidator {
           reason: "missing-version",
         };
         violation.authoritativeVersion = product.version;
-        this.recordUnverifiable();
+        recordUnverifiable(telemetry);
+        recordUnverifiable(this.telemetry);
         results.push({
           candidate,
           status: "unverifiable",
@@ -147,7 +182,8 @@ export class FreshnessValidator {
           authoritativeVersion: product.version,
           reason: "stale-version",
         };
-        this.recordStale();
+        recordStale(telemetry);
+        recordStale(this.telemetry);
         results.push({
           candidate,
           status: "stale",
@@ -167,7 +203,8 @@ export class FreshnessValidator {
           authoritativeVersion: product.version,
           reason: "authority-unavailable",
         };
-        this.recordUnverifiable();
+        recordUnverifiable(telemetry);
+        recordUnverifiable(this.telemetry);
         results.push({
           candidate,
           status: "unverifiable",
@@ -179,6 +216,7 @@ export class FreshnessValidator {
         continue;
       }
 
+      telemetry.freshCandidates += 1;
       this.telemetry.freshCandidates += 1;
       results.push({
         candidate,
@@ -191,27 +229,17 @@ export class FreshnessValidator {
 
     return {
       candidates: results,
-      telemetry: this.getTelemetry(),
+      telemetry: { ...telemetry },
     };
   }
 
+  /** @deprecated Use the request-scoped telemetry returned by validateCandidates. */
   getTelemetry(): FreshnessTelemetry {
     return { ...this.telemetry };
   }
 
   resetTelemetry(): void {
     this.telemetry = emptyTelemetry();
-  }
-
-  private recordStale(): void {
-    this.telemetry.staleCandidates += 1;
-    this.telemetry.freshnessViolations += 1;
-    this.telemetry.authoritativeFallbacks += 1;
-  }
-
-  private recordUnverifiable(): void {
-    this.telemetry.unverifiableCandidates += 1;
-    this.telemetry.freshnessViolations += 1;
   }
 }
 

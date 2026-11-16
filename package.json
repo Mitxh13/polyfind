@@ -11,10 +11,13 @@
     "test": "tsx --test --test-concurrency=1",
     "test:research": "npm test",
     "typecheck": "tsc --noEmit",
-    "check:production": "npm run typecheck && npm run build",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
+    "check:production": "npm run typecheck && npm run typecheck:scripts && npm run build",
     "migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed-catalog.ts",
-    "api": "tsx scripts/api.ts"
+    "api": "tsx scripts/api.ts",
+    "benchmark:integration": "tsx scripts/run-benchmark.ts",
+    "prepare:ci-db": "tsx scripts/prepare-ci-databases.ts"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
@@ -22,11 +25,14 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@lancedb/lancedb": "^0.41.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "mysql2": "^3.24.6",
+    "neo4j-driver": "^6.3.0",
     "next": "16.4.3",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "redis": "^5.12.1"
   }
 }

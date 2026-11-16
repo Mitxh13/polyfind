@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  RedisCacheAdapter,
+  InMemoryCacheAdapter,
   buildSearchCacheKey,
 } from "../src/index.js";
 
@@ -43,7 +43,7 @@ test("buildSearchCacheKey deterministically includes all result-affecting filter
 });
 
 test("cache hit and miss metrics work as expected", async () => {
-  const cache = new RedisCacheAdapter();
+  const cache = new InMemoryCacheAdapter();
   const key = "search:test-1";
 
   // Miss initially
@@ -64,7 +64,7 @@ test("cache hit and miss metrics work as expected", async () => {
 
 test("cache entries expire when TTL passes", async () => {
   let simulatedTime = 1000000;
-  const cache = new RedisCacheAdapter({
+  const cache = new InMemoryCacheAdapter({
     defaultTtlSeconds: 10,
     nowFn: () => simulatedTime,
   });
@@ -83,7 +83,7 @@ test("cache entries expire when TTL passes", async () => {
 });
 
 test("version-aware get invalidates cache when product version advances", async () => {
-  const cache = new RedisCacheAdapter();
+  const cache = new InMemoryCacheAdapter();
   const key = "search:query-version-check";
 
   // Cache query containing prod-1 at version 1 and prod-2 at version 3
@@ -116,7 +116,7 @@ test("version-aware get invalidates cache when product version advances", async 
 });
 
 test("invalidateProduct explicitly removes affected cached queries", async () => {
-  const cache = new RedisCacheAdapter();
+  const cache = new InMemoryCacheAdapter();
   const key1 = "search:q1";
   const key2 = "search:q2";
 

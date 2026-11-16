@@ -1,5 +1,12 @@
 # PolyFind — Relational Schema (MySQL)
 
+> **Executable-schema status:** Migrations `001` through `004` are implemented.
+> The normalized Phase 4 model and its implementation/deferred-status notes
+> are maintained in [docs/RELATIONAL_SCHEMA_PHASE4.md](docs/RELATIONAL_SCHEMA_PHASE4.md).
+> The search-log, search-result, deletion-audit, trigger, and view examples
+> below are planned/documentary objects unless present in `migrations/`; they
+> must not be treated as implemented tables.
+
 > Companion document: [nosql-schema.md](nosql-schema.md) covers LanceDB (Vector), Neo4j (Graph), and Redis (Key-Value Cache).
 
 ---
@@ -18,6 +25,8 @@ PolyFind stores each kind of data in the database best suited to it. **MySQL 8.0
 All SQL queries use parameterized queries (no heavy ORM) with InnoDB transactional guarantees. The schema is created by numbered SQL scripts in `migrations/`, applied in order:
 - `migrations/001_initial_schema.sql` (Tables and domain constraints)
 - `migrations/002_catalog_indexes.sql` (B-Tree and FULLTEXT indexes)
+- `migrations/003_catalog_metadata.sql` (Legacy-compatible product metadata)
+- `migrations/004_relational_foundation.sql` (Normalized marketplace, identity, audit, and outbox foundation)
 
 ---
 

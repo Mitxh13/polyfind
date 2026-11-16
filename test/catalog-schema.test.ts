@@ -81,11 +81,11 @@ test("parseDatabaseUrl parses valid MySQL URL structure", () => {
   assert.equal(config.database, "test_db");
 });
 
-// Integration tests against MySQL database if DATABASE_URL is set
-const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+// Destructive integration tests require an explicitly disposable database.
+const disposableDatabaseUrl = process.env.POLYFIND_TEST_DATABASE_URL;
 
-test("MySQL schema and migration behavior on a clean database", { skip: !hasDatabaseUrl }, async () => {
-  const pool = createDatabasePool();
+test("MySQL schema and migration behavior on a clean database", { skip: !disposableDatabaseUrl }, async () => {
+  const pool = createDatabasePool(parseDatabaseUrl(disposableDatabaseUrl));
 
   try {
     // 1. Reset/clean database tables

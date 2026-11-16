@@ -17,6 +17,7 @@ export {
 
 export {
   CatalogRepository,
+  asCatalogReader,
   mapRowToProduct,
   type ListProductsOptions,
   type PaginatedProducts,
@@ -30,8 +31,29 @@ export {
   NotFoundError,
   VersionConflictError,
   SafeDatabaseError,
+  OfferVersionConflictError,
   sanitizeDatabaseErrorMessage,
 } from "./errors.js";
+
+export {
+  RelationalRepository,
+  InMemoryRelationalStore,
+  type BrandInput,
+  type SellerInput,
+  type Seller,
+  type SellerStatus,
+  type ListSellersOptions,
+  type ProductVariantInput,
+  type CreateOfferInput,
+  type UpdateOfferInput,
+  type Offer,
+  type OfferAvailability,
+  type OfferVersion,
+  type ListOffersOptions,
+  type PriceHistoryEntry,
+  type ListPriceHistoryOptions,
+  type RelationalStore,
+} from "./relational-repository.js";
 
 export {
   handleListProducts,

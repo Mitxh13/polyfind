@@ -11,6 +11,7 @@ export interface CacheKeyOptions {
   page?: number | undefined;
   limit?: number | undefined;
   prefix?: string | undefined;
+  strategy?: string | undefined;
 }
 
 /**
@@ -42,5 +43,6 @@ export function buildSearchCacheKey(options: CacheKeyOptions): string {
   filterParts.sort();
 
   const filterString = filterParts.length > 0 ? filterParts.join("&") : "nofilter";
-  return `${prefix}:q=${encodeURIComponent(normalizedQuery)}:${filterString}:p=${page}:l=${limit}`;
+  const strategyPart = options.strategy ? `:strat=${options.strategy}` : "";
+  return `polyfind:v1:${prefix}:q=${encodeURIComponent(normalizedQuery)}:${filterString}${strategyPart}:p=${page}:l=${limit}`;
 }

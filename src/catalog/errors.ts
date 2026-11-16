@@ -47,6 +47,26 @@ export class VersionConflictError extends CatalogError {
   }
 }
 
+export class OfferVersionConflictError extends CatalogError {
+  readonly expectedVersion: number;
+  readonly actualVersion?: number | undefined;
+
+  constructor(id: string, expectedVersion: number, actualVersion?: number) {
+    const versionDetail =
+      actualVersion !== undefined
+        ? `expected version ${expectedVersion}, but actual version is ${actualVersion}`
+        : `version precondition ${expectedVersion} failed`;
+    super(
+      `Offer "${id}" has been modified concurrently (${versionDetail}).`,
+      409,
+      "OFFER_VERSION_CONFLICT",
+    );
+    this.name = "OfferVersionConflictError";
+    this.expectedVersion = expectedVersion;
+    this.actualVersion = actualVersion;
+  }
+}
+
 export class SafeDatabaseError extends CatalogError {
   constructor(originalError: unknown) {
     // Sanitizes any potential credentials, database hosts, or internal syntax details

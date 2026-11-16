@@ -117,6 +117,18 @@ export async function dropAllTables(pool: Pool): Promise<void> {
   const connection = await pool.getConnection();
   try {
     await connection.query("SET FOREIGN_KEY_CHECKS = 0");
+    await connection.query("DROP TABLE IF EXISTS outbox_deliveries");
+    await connection.query("DROP TABLE IF EXISTS outbox_events");
+    await connection.query("DROP TABLE IF EXISTS audit_logs");
+    await connection.query("DROP TABLE IF EXISTS sessions");
+    await connection.query("DROP TABLE IF EXISTS user_roles");
+    await connection.query("DROP TABLE IF EXISTS roles");
+    await connection.query("DROP TABLE IF EXISTS users");
+    await connection.query("DROP TABLE IF EXISTS offer_history");
+    await connection.query("DROP TABLE IF EXISTS offers");
+    await connection.query("DROP TABLE IF EXISTS sellers");
+    await connection.query("DROP TABLE IF EXISTS product_variants");
+    await connection.query("DROP TABLE IF EXISTS brands");
     await connection.query("DROP TABLE IF EXISTS product_versions");
     await connection.query("DROP TABLE IF EXISTS products");
     await connection.query("DROP TABLE IF EXISTS categories");

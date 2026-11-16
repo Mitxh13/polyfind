@@ -42,6 +42,8 @@ export class VectorIngestionService {
         price: product.price,
         inStock: product.stock > 0,
         version: product.version,
+        deleted: false,
+        sourceSystem: "polyfind",
       },
     };
   }

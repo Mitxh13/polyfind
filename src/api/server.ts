@@ -2,19 +2,62 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { healthCheck } from "../contracts/health.js";
 import { ContractValidationError } from "../contracts/errors.js";
 import { parseSearchRequest } from "../contracts/validation.js";
-import type { CatalogReader, ProductFilters } from "../contracts/types.js";
-import { CatalogValidationError, NotFoundError, SafeDatabaseError } from "../catalog/errors.js";
-import { SearchService, type InMemoryCatalog } from "./search.js";
+import type { CatalogReader, Product, ProductFilters } from "../contracts/types.js";
+import {
+  CatalogValidationError,
+  NotFoundError,
+  OfferVersionConflictError,
+  SafeDatabaseError,
+} from "../catalog/errors.js";
+import {
+  type RelationalStore,
+  InMemoryRelationalStore,
+  type CreateOfferInput,
+  type UpdateOfferInput,
+  type OfferAvailability,
+  type ListOffersOptions,
+  type ListPriceHistoryOptions,
+  type SellerStatus,
+  type ListProductsOptions,
+  type PaginatedProducts,
+  type CreateProductInput,
+  type UpdateProductInput,
+  type SellerInput,
+  type BrandInput,
+  type ProductVariantInput,
+} from "../catalog/index.js";
+import { SearchService } from "./search.js";
+import { AuthenticationError, type AuthPrincipal, type AuthSession } from "../auth/session-auth.js";
+import type { RedisConnectionStatus } from "../cache/redis-adapter.js";
+import type { Neo4jStatus } from "../sync/neo4j-driver.js";
+import type { VectorRuntimeHealth } from "../retrieval/vector-lifecycle.js";
 
 const MAX_LIMIT = 100;
 
+export interface ApiAuthService {
+  authenticate(token: string): Promise<AuthPrincipal | null>;
+  login?(email: string, password: string): Promise<AuthSession>;
+  registerCustomer?(email: string, password: string): Promise<AuthSession>;
+  bootstrapAdmin?(email: string, password: string, suppliedToken: string): Promise<AuthSession>;
+  logout?(token: string): Promise<void>;
+}
+
 export interface ApiServerOptions {
   catalog: CatalogReader;
-  search?: SearchService;
-  dependencyStatus?: Record<string, "available" | "not-configured" | "unavailable">;
-  mode?: "demo" | "live";
-  corsOrigin?: string;
-  rateLimit?: { windowMs: number; maxRequests: number };
+  relational?: RelationalStore | undefined;
+  productList?: ((options: ListProductsOptions) => Promise<PaginatedProducts>) | undefined;
+  createProduct?: ((input: CreateProductInput) => Promise<Product>) | undefined;
+  updateProduct?: ((id: string, patch: UpdateProductInput, expectedVersion?: number) => Promise<Product>) | undefined;
+  search?: SearchService | undefined;
+  auth?: ApiAuthService | undefined;
+  dependencyStatus?: Record<string, "available" | "not-configured" | "unavailable"> | undefined;
+  redisStatus?: (() => RedisConnectionStatus) | undefined;
+  graphStatus?: (() => Neo4jStatus) | undefined;
+  vectorStatus?: (() => VectorRuntimeHealth) | undefined;
+  syncHealth?: (() => Promise<unknown>) | undefined;
+  mode?: "demo" | "live" | undefined;
+  corsOrigin?: string | undefined;
+  rateLimit?: { windowMs: number; maxRequests: number } | undefined;
 }
 
 export interface ApiServer {
@@ -29,8 +72,8 @@ function sendJson(response: ServerResponse, status: number, body: unknown): void
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Content-Length", Buffer.byteLength(payload));
   response.setHeader("Access-Control-Allow-Origin", response.getHeader("Access-Control-Allow-Origin") ?? "*");
-  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization");
   response.end(payload);
 }
 
@@ -43,6 +86,9 @@ function setSecurityHeaders(response: ServerResponse, origin: string): void {
 }
 
 function errorResponse(error: unknown): { status: number; body: object } {
+  if (error instanceof AuthenticationError) {
+    return { status: error.statusCode, body: { error: { code: error.code, message: error.message } } };
+  }
   if (error instanceof ContractValidationError) {
     return { status: 400, body: { error: { code: error.code, message: error.message, issues: error.issues } } };
   }
@@ -52,10 +98,146 @@ function errorResponse(error: unknown): { status: number; body: object } {
   if (error instanceof NotFoundError) {
     return { status: 404, body: { error: { code: error.code, message: error.message } } };
   }
+  if (error instanceof OfferVersionConflictError) {
+    return { status: 409, body: { error: { code: error.code, message: error.message } } };
+  }
   if (error instanceof SafeDatabaseError) {
     return { status: 503, body: { error: { code: error.code, message: error.message } } };
   }
   return { status: 500, body: { error: { code: "INTERNAL_ERROR", message: "The request could not be completed." } } };
+}
+
+function consumeAuthAttempt(
+  attempts: Map<string, { startedAt: number; count: number }>,
+  key: string,
+  maximum: number,
+  windowMs: number,
+): boolean {
+  const now = Date.now();
+  const current = attempts.get(key);
+  if (!current || now - current.startedAt >= windowMs) {
+    attempts.set(key, { startedAt: now, count: 1 });
+    return true;
+  }
+  if (current.count >= maximum) return false;
+  current.count += 1;
+  if (attempts.size > 10_000) {
+    for (const [entryKey, bucket] of attempts) {
+      if (now - bucket.startedAt >= windowMs) attempts.delete(entryKey);
+    }
+  }
+  return true;
+}
+
+function getBearerToken(request: IncomingMessage): string | null {
+  const header = request.headers["authorization"];
+  if (typeof header === "string" && header.toLowerCase().startsWith("bearer ")) {
+    const token = header.slice(7).trim();
+    if (token.length > 0) return token;
+  }
+  const cookieHeader = request.headers.cookie;
+  if (typeof cookieHeader !== "string") return null;
+  const cookie = cookieHeader.split(";").map((part) => part.trim())
+    .find((part) => part.startsWith("polyfind_session="));
+  if (!cookie) return null;
+  const value = cookie.slice("polyfind_session=".length);
+  try { return decodeURIComponent(value) || null; } catch { return null; }
+}
+
+function setSessionCookie(response: ServerResponse, session: AuthSession): void {
+  const maxAge = Math.max(0, Math.floor((Date.parse(session.expiresAt) - Date.now()) / 1000));
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  response.setHeader("Set-Cookie", `polyfind_session=${encodeURIComponent(session.token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}${secure}`);
+}
+
+function clearSessionCookie(response: ServerResponse): void {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  response.setHeader("Set-Cookie", `polyfind_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${secure}`);
+}
+
+function sendAuthSession(response: ServerResponse, status: number, session: AuthSession): void {
+  setSessionCookie(response, session);
+  sendJson(response, status, { expiresAt: session.expiresAt, user: session.user });
+}
+
+async function checkMutationAuth(request: IncomingMessage, auth?: ApiAuthService): Promise<AuthPrincipal | null> {
+  const token = getBearerToken(request);
+  if (!auth || !token) return null;
+  const principal = await auth.authenticate(token);
+  return principal?.roles.includes("admin") ? principal : null;
+}
+
+function parseCommonPagination(url: URL): { page: number; limit: number } {
+  const page = parseInteger(url.searchParams.get("page"), "page", 1);
+  const limit = parseInteger(url.searchParams.get("limit"), "limit", 20);
+  if (limit > MAX_LIMIT) throw new CatalogValidationError(`limit must be between 1 and ${MAX_LIMIT}.`);
+  return { page, limit };
+}
+
+function parseOfferFilters(url: URL): ListOffersOptions {
+  const { page, limit } = parseCommonPagination(url);
+  const productId = url.searchParams.get("productId") ?? url.searchParams.get("product") ?? undefined;
+  const sellerId = url.searchParams.get("sellerId") ?? url.searchParams.get("seller") ?? undefined;
+  const variantId = url.searchParams.get("variantId") ?? url.searchParams.get("variant") ?? undefined;
+  const availRaw = url.searchParams.get("availability");
+  let availability: OfferAvailability | undefined;
+  if (availRaw) {
+    if (availRaw !== "available" && availRaw !== "unavailable" && availRaw !== "unknown_stock") {
+      throw new CatalogValidationError("availability must be available, unavailable, or unknown_stock.");
+    }
+    availability = availRaw;
+  }
+  const minRaw = url.searchParams.get("minPrice");
+  const maxRaw = url.searchParams.get("maxPrice");
+  const minPrice = minRaw === null || minRaw === "" ? undefined : Number(minRaw);
+  const maxPrice = maxRaw === null || maxRaw === "" ? undefined : Number(maxRaw);
+  if (minPrice !== undefined && (!Number.isFinite(minPrice) || minPrice < 0)) throw new CatalogValidationError("minPrice must be a non-negative number.");
+  if (maxPrice !== undefined && (!Number.isFinite(maxPrice) || maxPrice < 0)) throw new CatalogValidationError("maxPrice must be a non-negative number.");
+  if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) throw new CatalogValidationError("minPrice cannot be greater than maxPrice.");
+  const stockRaw = url.searchParams.get("inStock");
+  const inStock = stockRaw === null ? undefined : stockRaw === "true" ? true : stockRaw === "false" ? false : (() => { throw new CatalogValidationError("inStock must be true or false."); })();
+  const sort = url.searchParams.get("sort") ?? undefined;
+  if (sort && !["price", "updatedAt", "id"].includes(sort)) throw new CatalogValidationError("sort must be price, updatedAt, or id.");
+  const sortOrder = url.searchParams.get("sortOrder") ?? undefined;
+  if (sortOrder && !["asc", "desc"].includes(sortOrder)) throw new CatalogValidationError("sortOrder must be asc or desc.");
+
+  return {
+    ...(productId ? { productId } : {}),
+    ...(sellerId ? { sellerId } : {}),
+    ...(variantId ? { variantId } : {}),
+    ...(availability ? { availability } : {}),
+    ...(minPrice !== undefined ? { minPrice } : {}),
+    ...(maxPrice !== undefined ? { maxPrice } : {}),
+    ...(inStock !== undefined ? { inStock } : {}),
+    page,
+    limit,
+    ...(sort ? { sort: sort as "price" | "updatedAt" | "id" } : {}),
+    ...(sortOrder ? { sortOrder: sortOrder as "asc" | "desc" } : {}),
+  };
+}
+
+function parseHistoryFilters(url: URL): ListPriceHistoryOptions {
+  const { page, limit } = parseCommonPagination(url);
+  const productId = url.searchParams.get("productId") ?? url.searchParams.get("product") ?? undefined;
+  const offerId = url.searchParams.get("offerId") ?? url.searchParams.get("offer") ?? undefined;
+  const sellerId = url.searchParams.get("sellerId") ?? url.searchParams.get("seller") ?? undefined;
+  const startDate = url.searchParams.get("startDate") ?? undefined;
+  const endDate = url.searchParams.get("endDate") ?? undefined;
+  if (startDate && Number.isNaN(Date.parse(startDate))) throw new CatalogValidationError("startDate must be a valid ISO date string.");
+  if (endDate && Number.isNaN(Date.parse(endDate))) throw new CatalogValidationError("endDate must be a valid ISO date string.");
+  const sortOrder = url.searchParams.get("sortOrder") ?? "desc";
+  if (!["asc", "desc"].includes(sortOrder)) throw new CatalogValidationError("sortOrder must be asc or desc.");
+
+  return {
+    ...(productId ? { productId } : {}),
+    ...(offerId ? { offerId } : {}),
+    ...(sellerId ? { sellerId } : {}),
+    ...(startDate ? { startDate } : {}),
+    ...(endDate ? { endDate } : {}),
+    page,
+    limit,
+    sortOrder: sortOrder as "asc" | "desc",
+  };
 }
 
 function parseInteger(value: string | null, name: string, defaultValue: number): number {
@@ -119,12 +301,18 @@ async function handle(
   response: ServerResponse,
   options: ApiServerOptions,
   requestCounts: Map<string, { startedAt: number; count: number }>,
+  authAttempts: Map<string, { startedAt: number; count: number }>,
 ): Promise<void> {
   const origin = options.corsOrigin ?? "*";
   setSecurityHeaders(response, origin);
-  const clientKey = request.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim()
-    ?? request.socket.remoteAddress
-    ?? "unknown";
+  const requestOrigin = request.headers.origin;
+  const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(request.method ?? "GET");
+  if (isMutation && typeof requestOrigin === "string" && origin !== "*" && requestOrigin !== origin) {
+    sendJson(response, 403, { error: { code: "ORIGIN_REJECTED", message: "Cross-origin state-changing request rejected." } });
+    return;
+  }
+  // Do not trust a client-supplied X-Forwarded-For value for authentication throttling.
+  const clientKey = request.socket.remoteAddress ?? "unknown";
   const rateLimit = options.rateLimit;
   if (rateLimit) {
     const now = Date.now();
@@ -139,22 +327,90 @@ async function handle(
       }
     }
   }
+
   if (request.method === "OPTIONS") {
     response.statusCode = 204;
-    response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    response.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+    response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS");
+    response.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization");
     response.end();
     return;
   }
 
-  if (request.method !== "GET" && request.method !== "POST") {
-    sendJson(response, 405, { error: { code: "METHOD_NOT_ALLOWED", message: "Only GET and POST requests are supported." } });
+  if (request.method !== "GET" && request.method !== "POST" && request.method !== "PUT" && request.method !== "PATCH") {
+    sendJson(response, 405, { error: { code: "METHOD_NOT_ALLOWED", message: "Only GET, POST, PUT, and PATCH requests are supported." } });
     return;
   }
 
   const url = new URL(request.url ?? "/", "http://localhost");
+  const relational = options.relational!;
 
   try {
+    // PUT / PATCH endpoints
+    if (request.method === "PUT" || request.method === "PATCH") {
+      const productMatch = /^\/api\/products\/([^/]+)$/.exec(url.pathname);
+      if (productMatch && options.updateProduct) {
+        const actor = await checkMutationAuth(request, options.auth);
+        if (!actor) {
+          sendJson(response, 401, { error: { code: "UNAUTHORIZED", message: "Authentication required for catalogue mutations." } });
+          return;
+        }
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          throw new CatalogValidationError("Request body must be a JSON object.");
+        }
+        const body = rawBody as Record<string, unknown>;
+        const expectedVersion = body["expectedVersion"] === undefined ? undefined : Number(body["expectedVersion"]);
+        if (expectedVersion !== undefined && (!Number.isInteger(expectedVersion) || expectedVersion < 1)) {
+          throw new CatalogValidationError("expectedVersion must be a positive integer.");
+        }
+        const patch: UpdateProductInput = { actorUserId: actor.id };
+        if (body["name"] !== undefined) patch.name = String(body["name"]);
+        if (body["description"] !== undefined) patch.description = String(body["description"]);
+        if (body["categoryId"] !== undefined) patch.categoryId = String(body["categoryId"]);
+        if (body["price"] !== undefined) patch.price = Number(body["price"]);
+        if (body["stock"] !== undefined) patch.stock = Number(body["stock"]);
+        const updated = await options.updateProduct(decodeURIComponent(productMatch[1]!), patch, expectedVersion);
+        sendJson(response, 200, { item: updated, version: updated.version });
+        return;
+      }
+
+      const offerMatch = /^\/api\/offers\/([^/]+)$/.exec(url.pathname);
+      if (offerMatch) {
+        const actor = await checkMutationAuth(request, options.auth);
+        if (!actor) {
+          sendJson(response, 401, { error: { code: "UNAUTHORIZED", message: "Authentication required for catalogue mutations." } });
+          return;
+        }
+        const offerId = decodeURIComponent(offerMatch[1]!);
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          throw new CatalogValidationError("Request body must be a JSON object.");
+        }
+        const body = rawBody as Record<string, unknown>;
+        const versionVal = body["expectedVersion"] ?? body["version"] ?? url.searchParams.get("version");
+        const expectedVersion = Number(versionVal);
+        if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+          throw new CatalogValidationError("expectedVersion (or version) is required and must be a positive integer.");
+        }
+        const patch: UpdateOfferInput = { actorUserId: actor.id };
+        if (body["currency"] !== undefined) patch.currency = String(body["currency"]);
+        if (body["price"] !== undefined) patch.price = Number(body["price"]);
+        if (body["stockQuantity"] !== undefined) patch.stockQuantity = body["stockQuantity"] === null ? null : Number(body["stockQuantity"]);
+        if (body["availability"] !== undefined) patch.availability = body["availability"] as OfferAvailability;
+        if (body["validFrom"] !== undefined) patch.validFrom = String(body["validFrom"]);
+        if (body["validUntil"] !== undefined) patch.validUntil = body["validUntil"] === null ? null : String(body["validUntil"]);
+        if (body["changeReason"] !== undefined) patch.changeReason = String(body["changeReason"]);
+        if (body["requestId"] !== undefined) patch.requestId = String(body["requestId"]);
+
+        const updated = await relational.updateOffer(offerId, patch, expectedVersion);
+        sendJson(response, 200, { item: updated, version: updated.version });
+        return;
+      }
+
+      sendJson(response, 405, { error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed for this endpoint." } });
+      return;
+    }
+
     // POST endpoints
     if (request.method === "POST") {
       if (url.pathname === "/api/search") {
@@ -175,8 +431,232 @@ async function handle(
           freshnessMode: body["freshnessMode"] ?? "strict",
         };
         const searchRequest = parseSearchRequest(requestPayload);
-        const result = await (options.search ?? new SearchService({ catalog: options.catalog })).search(searchRequest);
+        const hybrid = typeof body["hybrid"] === "boolean" ? body["hybrid"] : undefined;
+        const result = await (options.search ?? new SearchService({ catalog: options.catalog })).search({
+          ...searchRequest,
+          ...(hybrid !== undefined ? { hybrid } : {}),
+        });
         sendJson(response, 200, result);
+        return;
+      }
+
+      if (url.pathname === "/api/brands") {
+        const actor = await checkMutationAuth(request, options.auth);
+        if (!actor) {
+          sendJson(response, 401, { error: { code: "UNAUTHORIZED", message: "Authentication required for catalogue mutations." } });
+          return;
+        }
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          throw new CatalogValidationError("Request body must be a JSON object.");
+        }
+        const body = rawBody as Record<string, unknown>;
+        if (typeof body["id"] !== "string" || typeof body["name"] !== "string" || typeof body["slug"] !== "string") {
+          throw new CatalogValidationError("Brand requires string id, name, and slug.");
+        }
+        const input: BrandInput = {
+          id: body["id"], name: body["name"], slug: body["slug"],
+          ...(typeof body["description"] === "string" ? { description: body["description"] } : {}),
+          actorUserId: actor.id,
+        };
+        await relational.createBrand(input);
+        sendJson(response, 201, { item: input });
+        return;
+      }
+
+      const variantCreateMatch = /^\/api\/products\/([^/]+)\/variants$/.exec(url.pathname);
+      if (variantCreateMatch) {
+        const actor = await checkMutationAuth(request, options.auth);
+        if (!actor) {
+          sendJson(response, 401, { error: { code: "UNAUTHORIZED", message: "Authentication required for catalogue mutations." } });
+          return;
+        }
+        const productId = decodeURIComponent(variantCreateMatch[1]!);
+        if (!(await options.catalog.getProduct(productId))) throw new NotFoundError("Product", productId);
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          throw new CatalogValidationError("Request body must be a JSON object.");
+        }
+        const body = rawBody as Record<string, unknown>;
+        if (typeof body["id"] !== "string" || typeof body["variantKey"] !== "string" ||
+            typeof body["attributes"] !== "object" || body["attributes"] === null || Array.isArray(body["attributes"])) {
+          throw new CatalogValidationError("Variant requires string id, string variantKey, and object attributes.");
+        }
+        const input: ProductVariantInput = {
+          id: body["id"], productId, variantKey: body["variantKey"],
+          attributes: body["attributes"] as Record<string, string>,
+          ...(typeof body["sku"] === "string" || body["sku"] === null ? { sku: body["sku"] as string | null } : {}),
+          actorUserId: actor.id,
+        };
+        await relational.createProductVariant(input);
+        sendJson(response, 201, { item: input });
+        return;
+      }
+
+      if (url.pathname === "/api/sellers") {
+        const actor = await checkMutationAuth(request, options.auth);
+        if (!actor) {
+          sendJson(response, 401, { error: { code: "UNAUTHORIZED", message: "Authentication required for catalogue mutations." } });
+          return;
+        }
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          throw new CatalogValidationError("Request body must be a JSON object.");
+        }
+        const body = rawBody as Record<string, unknown>;
+        if (typeof body["id"] !== "string" || typeof body["name"] !== "string" || typeof body["slug"] !== "string") {
+          throw new CatalogValidationError("Seller requires string id, name, and slug.");
+        }
+        const status = body["status"];
+        if (status !== undefined && status !== "active" && status !== "inactive" && status !== "suspended") {
+          throw new CatalogValidationError("status must be active, inactive, or suspended.");
+        }
+        const input: SellerInput = {
+          id: body["id"], name: body["name"], slug: body["slug"],
+          ...(status ? { status } : {}),
+          actorUserId: actor.id,
+        };
+        const created = await relational.createSeller(input);
+        sendJson(response, 201, { item: created });
+        return;
+      }
+
+      if (url.pathname === "/api/auth/bootstrap") {
+        if (!options.auth?.bootstrapAdmin) throw new AuthenticationError("Authentication service is unavailable.", "AUTH_UNAVAILABLE", 503);
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) throw new CatalogValidationError("Request body must be a JSON object.");
+        const body = rawBody as Record<string, unknown>;
+        if (typeof body["email"] !== "string" || typeof body["password"] !== "string" || typeof body["bootstrapToken"] !== "string") {
+          throw new CatalogValidationError("email, password, and bootstrapToken are required.");
+        }
+        const attemptKey = clientKey + ":bootstrap:" + body["email"].trim().toLowerCase();
+        if (!consumeAuthAttempt(authAttempts, attemptKey, 5, 15 * 60 * 1000)) {
+          response.setHeader("Retry-After", "900");
+          sendJson(response, 429, { error: { code: "AUTH_RATE_LIMITED", message: "Too many bootstrap attempts. Try again in 15 minutes." } });
+          return;
+        }
+        const session = await options.auth.bootstrapAdmin(body["email"], body["password"], body["bootstrapToken"]);
+        authAttempts.delete(attemptKey);
+        sendAuthSession(response, 201, session);
+        return;
+      }
+
+      if (url.pathname === "/api/auth/register") {
+        if (!options.auth?.registerCustomer) {
+          throw new AuthenticationError("Registration service is unavailable.", "AUTH_UNAVAILABLE", 503);
+        }
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          throw new CatalogValidationError("Request body must be a JSON object.");
+        }
+        const body = rawBody as Record<string, unknown>;
+        if (typeof body["email"] !== "string" || typeof body["password"] !== "string") {
+          throw new CatalogValidationError("email and password are required.");
+        }
+        const attemptKey = clientKey + ":register:" + body["email"].trim().toLowerCase();
+        if (!consumeAuthAttempt(authAttempts, attemptKey, 5, 15 * 60 * 1000)) {
+          response.setHeader("Retry-After", "900");
+          sendJson(response, 429, { error: { code: "AUTH_RATE_LIMITED", message: "Too many registration attempts. Try again in 15 minutes." } });
+          return;
+        }
+        const session = await options.auth.registerCustomer(body["email"], body["password"]);
+        authAttempts.delete(attemptKey);
+        sendAuthSession(response, 201, session);
+        return;
+      }
+
+      if (url.pathname === "/api/auth/login") {
+        if (!options.auth?.login) throw new AuthenticationError("Authentication service is unavailable.", "AUTH_UNAVAILABLE", 503);
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) throw new CatalogValidationError("Request body must be a JSON object.");
+        const body = rawBody as Record<string, unknown>;
+        if (typeof body["email"] !== "string" || typeof body["password"] !== "string") {
+          throw new CatalogValidationError("email and password are required.");
+        }
+        const attemptKey = clientKey + ":login:" + body["email"].trim().toLowerCase();
+        if (!consumeAuthAttempt(authAttempts, attemptKey, 10, 15 * 60 * 1000)) {
+          response.setHeader("Retry-After", "900");
+          sendJson(response, 429, { error: { code: "AUTH_RATE_LIMITED", message: "Too many login attempts. Try again in 15 minutes." } });
+          return;
+        }
+        const session = await options.auth.login(body["email"], body["password"]);
+        authAttempts.delete(attemptKey);
+        sendAuthSession(response, 200, session);
+        return;
+      }
+
+      if (url.pathname === "/api/auth/logout") {
+        const token = getBearerToken(request);
+        if (!token || !options.auth?.logout) throw new AuthenticationError("Authentication required.");
+        await options.auth.logout(token);
+        clearSessionCookie(response);
+        sendJson(response, 200, { success: true });
+        return;
+      }
+
+      if (url.pathname === "/api/products" && options.createProduct) {
+        const actor = await checkMutationAuth(request, options.auth);
+        if (!actor) {
+          sendJson(response, 401, { error: { code: "UNAUTHORIZED", message: "Authentication required for catalogue mutations." } });
+          return;
+        }
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          throw new CatalogValidationError("Request body must be a JSON object.");
+        }
+        const body = rawBody as Record<string, unknown>;
+        if (typeof body["id"] !== "string" || typeof body["name"] !== "string" ||
+            typeof body["description"] !== "string" || typeof body["categoryId"] !== "string" ||
+            typeof body["price"] !== "number" || typeof body["stock"] !== "number") {
+          throw new CatalogValidationError("Product requires string id, name, description, categoryId and numeric price and stock.");
+        }
+        const input: CreateProductInput = {
+          id: body["id"], name: body["name"], description: body["description"],
+          categoryId: body["categoryId"], price: body["price"], stock: body["stock"],
+          ...(typeof body["currency"] === "string" ? { currency: body["currency"].toUpperCase() } : {}),
+          actorUserId: actor.id,
+        };
+        const created = await options.createProduct(input);
+        sendJson(response, 201, { item: created });
+        return;
+      }
+
+      if (url.pathname === "/api/offers") {
+        const actor = await checkMutationAuth(request, options.auth);
+        if (!actor) {
+          sendJson(response, 401, { error: { code: "UNAUTHORIZED", message: "Authentication required for catalogue mutations." } });
+          return;
+        }
+        const rawBody = await readJsonBody(request);
+        if (typeof rawBody !== "object" || rawBody === null || Array.isArray(rawBody)) {
+          throw new CatalogValidationError("Request body must be a JSON object.");
+        }
+        const body = rawBody as Record<string, unknown>;
+        if (!body["id"] || typeof body["id"] !== "string") throw new CatalogValidationError("Offer id is required.");
+        if (!body["productId"] || typeof body["productId"] !== "string") throw new CatalogValidationError("Offer productId is required.");
+        if (!body["sellerId"] || typeof body["sellerId"] !== "string") throw new CatalogValidationError("Offer sellerId is required.");
+        if (!body["currency"] || typeof body["currency"] !== "string") throw new CatalogValidationError("Offer currency is required.");
+        if (typeof body["price"] !== "number") throw new CatalogValidationError("Offer price must be a number.");
+        if (!body["availability"] || typeof body["availability"] !== "string") throw new CatalogValidationError("Offer availability is required.");
+
+        const input: CreateOfferInput = {
+          id: body["id"].trim(),
+          productId: body["productId"].trim(),
+          sellerId: body["sellerId"].trim(),
+          variantId: typeof body["variantId"] === "string" ? body["variantId"].trim() : null,
+          currency: body["currency"].trim(),
+          price: body["price"],
+          stockQuantity: typeof body["stockQuantity"] === "number" ? body["stockQuantity"] : null,
+          availability: body["availability"] as OfferAvailability,
+          validFrom: typeof body["validFrom"] === "string" ? body["validFrom"] : undefined,
+          validUntil: typeof body["validUntil"] === "string" ? body["validUntil"] : null,
+          changeReason: typeof body["changeReason"] === "string" ? body["changeReason"] : undefined,
+          requestId: typeof body["requestId"] === "string" ? body["requestId"] : undefined,
+          actorUserId: actor.id,
+        };
+
+        const created = await relational.createOffer(input);
+        sendJson(response, 201, { item: created });
         return;
       }
 
@@ -185,10 +665,34 @@ async function handle(
     }
 
     // GET endpoints
+    if (url.pathname === "/api/auth/me") {
+      const token = getBearerToken(request);
+      const principal = token && options.auth ? await options.auth.authenticate(token) : null;
+      if (!principal) throw new AuthenticationError("Authentication required.");
+      sendJson(response, 200, { user: principal });
+      return;
+    }
+
     if (url.pathname === "/api/health") {
+      const syncHealth = options.syncHealth ? await options.syncHealth() : undefined;
       sendJson(response, 200, {
         ...healthCheck(),
-        dependencies: options.dependencyStatus ?? {},
+        dependencies: {
+          ...(options.dependencyStatus ?? {}),
+          ...(options.redisStatus ? { redis: options.redisStatus() === "connected" ? "available" : "unavailable" } : {}),
+          ...(options.graphStatus ? { graph: options.graphStatus() === "connected" ? "available" : "unavailable" } : {}),
+          ...(options.vectorStatus ? {
+            vector: options.vectorStatus().state === "available"
+              ? "available"
+              : options.vectorStatus().embedding === "not-configured"
+                ? "not-configured"
+                : "unavailable",
+          } : {}),
+        },
+        ...(options.redisStatus ? { redisState: options.redisStatus() } : {}),
+        ...(options.graphStatus ? { graphState: options.graphStatus() } : {}),
+        ...(options.vectorStatus ? { vectorState: options.vectorStatus() } : {}),
+        ...(syncHealth === undefined ? {} : { synchronization: syncHealth }),
         ...(options.mode === undefined ? {} : { mode: options.mode }),
       });
       return;
@@ -203,11 +707,155 @@ async function handle(
       return;
     }
 
+    if (url.pathname === "/api/brands") {
+      const items = await relational.listBrands();
+      sendJson(response, 200, { items, total: items.length });
+      return;
+    }
+
+    const brandMatch = /^\/api\/brands\/([^/]+)$/.exec(url.pathname);
+    if (brandMatch) {
+      const brandId = decodeURIComponent(brandMatch[1]!);
+      const item = await relational.getBrand(brandId);
+      if (!item) throw new NotFoundError("Brand", brandId);
+      sendJson(response, 200, { item });
+      return;
+    }
+
+    const variantsMatch = /^\/api\/products\/([^/]+)\/variants$/.exec(url.pathname);
+    if (variantsMatch) {
+      const productId = decodeURIComponent(variantsMatch[1]!);
+      if (!(await options.catalog.getProduct(productId))) throw new NotFoundError("Product", productId);
+      const items = await relational.listProductVariants(productId);
+      sendJson(response, 200, { items, total: items.length });
+      return;
+    }
+
+    const variantMatch = /^\/api\/variants\/([^/]+)$/.exec(url.pathname);
+    if (variantMatch) {
+      const variantId = decodeURIComponent(variantMatch[1]!);
+      const item = await relational.getProductVariant(variantId);
+      if (!item) throw new NotFoundError("Variant", variantId);
+      sendJson(response, 200, { item });
+      return;
+    }
+
+    if (url.pathname === "/api/sellers") {
+      const { page, limit } = parseCommonPagination(url);
+      const status = url.searchParams.get("status") as SellerStatus | undefined;
+      if (status && !["active", "inactive", "suspended"].includes(status)) {
+        throw new CatalogValidationError("status must be active, inactive, or suspended.");
+      }
+      const result = await relational.listSellers({ ...(status ? { status } : {}), page, limit });
+      sendJson(response, 200, {
+        items: result.items,
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: Math.max(1, Math.ceil(result.total / result.limit)),
+      });
+      return;
+    }
+
+    const sellerOffersMatch = /^\/api\/sellers\/([^/]+)\/offers$/.exec(url.pathname);
+    if (sellerOffersMatch) {
+      const sellerId = decodeURIComponent(sellerOffersMatch[1]!);
+      const seller = await relational.getSeller(sellerId);
+      if (!seller) throw new NotFoundError("Seller", sellerId);
+      const filters = parseOfferFilters(url);
+      const result = await relational.listOffers({ ...filters, sellerId: seller.id });
+      sendJson(response, 200, {
+        items: result.items,
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: Math.max(1, Math.ceil(result.total / result.limit)),
+      });
+      return;
+    }
+
+    const sellerMatch = /^\/api\/sellers\/([^/]+)$/.exec(url.pathname);
+    if (sellerMatch) {
+      const sellerId = decodeURIComponent(sellerMatch[1]!);
+      const seller = await relational.getSeller(sellerId);
+      if (!seller) throw new NotFoundError("Seller", sellerId);
+      sendJson(response, 200, { item: seller });
+      return;
+    }
+
+    if (url.pathname === "/api/offers") {
+      const filters = parseOfferFilters(url);
+      const result = await relational.listOffers(filters);
+      sendJson(response, 200, {
+        items: result.items,
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: Math.max(1, Math.ceil(result.total / result.limit)),
+      });
+      return;
+    }
+
+    const offerHistoryMatch = /^\/api\/offers\/([^/]+)\/price-history$/.exec(url.pathname);
+    if (offerHistoryMatch) {
+      const offerId = decodeURIComponent(offerHistoryMatch[1]!);
+      const offer = await relational.getOffer(offerId);
+      if (!offer) throw new NotFoundError("Offer", offerId);
+      const filters = parseHistoryFilters(url);
+      const result = await relational.getPriceHistory({ ...filters, offerId });
+      sendJson(response, 200, {
+        items: result.items,
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: Math.max(1, Math.ceil(result.total / result.limit)),
+      });
+      return;
+    }
+
+    const offerMatch = /^\/api\/offers\/([^/]+)$/.exec(url.pathname);
+    if (offerMatch) {
+      const offerId = decodeURIComponent(offerMatch[1]!);
+      const offer = await relational.getOffer(offerId);
+      if (!offer) throw new NotFoundError("Offer", offerId);
+      sendJson(response, 200, { item: offer });
+      return;
+    }
+
+    if (url.pathname === "/api/price-history") {
+      const filters = parseHistoryFilters(url);
+      const result = await relational.getPriceHistory(filters);
+      sendJson(response, 200, {
+        items: result.items,
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: Math.max(1, Math.ceil(result.total / result.limit)),
+      });
+      return;
+    }
+
     if (url.pathname === "/api/products") {
       const parsed = parseFilters(url);
-      const all = "listAll" in options.catalog
-        ? (options.catalog as InMemoryCatalog).listAll()
-        : (await options.catalog.listProducts(parsed.filters, 1, 100)).items;
+      if (options.productList) {
+        const result = await options.productList({
+          ...(parsed.q === undefined ? {} : { q: parsed.q }),
+          filters: parsed.filters,
+          page: parsed.page,
+          limit: parsed.limit,
+          sort: parsed.sort as "relevance" | "name" | "price" | "updatedAt",
+        });
+        sendJson(response, 200, {
+          items: result.items,
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: Math.max(1, Math.ceil(result.total / result.limit)),
+          sort: parsed.sort,
+        });
+        return;
+      }
+      const all = (await options.catalog.listProducts(parsed.filters, 1, 100)).items;
       const query = parsed.q?.trim().toLocaleLowerCase();
       const filtered = all.filter((product) =>
         (!query || `${product.name} ${product.description}`.toLocaleLowerCase().includes(query)) &&
@@ -237,6 +885,40 @@ async function handle(
       return;
     }
 
+    const productOffersMatch = /^\/api\/products\/([^/]+)\/offers$/.exec(url.pathname);
+    if (productOffersMatch) {
+      const productId = decodeURIComponent(productOffersMatch[1]!);
+      const product = await options.catalog.getProduct(productId);
+      if (!product) throw new NotFoundError("Product", productId);
+      const filters = parseOfferFilters(url);
+      const result = await relational.listOffers({ ...filters, productId });
+      sendJson(response, 200, {
+        items: result.items,
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: Math.max(1, Math.ceil(result.total / result.limit)),
+      });
+      return;
+    }
+
+    const productHistoryMatch = /^\/api\/products\/([^/]+)\/price-history$/.exec(url.pathname);
+    if (productHistoryMatch) {
+      const productId = decodeURIComponent(productHistoryMatch[1]!);
+      const product = await options.catalog.getProduct(productId);
+      if (!product) throw new NotFoundError("Product", productId);
+      const filters = parseHistoryFilters(url);
+      const result = await relational.getPriceHistory({ ...filters, productId });
+      sendJson(response, 200, {
+        items: result.items,
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: Math.max(1, Math.ceil(result.total / result.limit)),
+      });
+      return;
+    }
+
     const productMatch = /^\/api\/products\/([^/]+)$/.exec(url.pathname);
     if (productMatch) {
       const product = await options.catalog.getProduct(decodeURIComponent(productMatch[1]!));
@@ -249,6 +931,8 @@ async function handle(
       const parsed = parseFilters(url);
       if (!parsed.q?.trim()) throw new CatalogValidationError("q is required and must be non-empty.");
       const freshnessMode = url.searchParams.get("freshnessMode") ?? "strict";
+      const hybridParam = url.searchParams.get("hybrid");
+      const hybrid = hybridParam === null ? undefined : hybridParam === "true";
       const request = parseSearchRequest({
         query: parsed.q,
         filters: parsed.filters,
@@ -256,7 +940,10 @@ async function handle(
         limit: parsed.limit,
         freshnessMode,
       });
-      const result = await (options.search ?? new SearchService({ catalog: options.catalog })).search(request);
+      const result = await (options.search ?? new SearchService({ catalog: options.catalog })).search({
+        ...request,
+        ...(hybrid !== undefined ? { hybrid } : {}),
+      });
       sendJson(response, 200, result);
       return;
     }
@@ -269,9 +956,17 @@ async function handle(
 }
 
 export function createApiServer(options: ApiServerOptions): ApiServer {
+  if (options.mode === "live" && !options.relational) {
+    throw new Error("Live API mode requires an explicit persistent relational repository.");
+  }
+  const resolvedOptions: ApiServerOptions = {
+    ...options,
+    relational: options.relational ?? new InMemoryRelationalStore(),
+  };
   const requestCounts = new Map<string, { startedAt: number; count: number }>();
+  const authAttempts = new Map<string, { startedAt: number; count: number }>();
   const server = createServer((request, response) => {
-    void handle(request, response, options, requestCounts);
+    void handle(request, response, resolvedOptions, requestCounts, authAttempts);
   });
   return {
     server,
