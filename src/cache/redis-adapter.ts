@@ -25,7 +25,10 @@ export class RedisCacheAdapter {
     this.defaultTtlSeconds = options.defaultTtlSeconds ?? 60;
     this.client = options.client ?? createClient({
       url: redisUrl,
-      socket: { connectTimeout: options.connectTimeoutMs ?? 5_000 },
+      socket: {
+        connectTimeout: options.connectTimeoutMs ?? 3_000,
+        reconnectStrategy: (retries) => (retries > 2 ? false : Math.min(retries * 100, 500)),
+      },
     });
     this.client.on("ready", () => { this.status = "connected"; });
     this.client.on("reconnecting", () => { this.status = "reconnecting"; });
